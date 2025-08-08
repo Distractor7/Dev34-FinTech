@@ -35,7 +35,7 @@ export default function LoginPage() {
         style={{
           maxWidth: 500,
           width: "100%",
-          padding: 12,
+          padding: 30,
           backgroundColor: "white",
           borderRadius: 12,
           boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
@@ -45,7 +45,13 @@ export default function LoginPage() {
         <img
           src="/flow34.png"
           alt="Login Graphic"
-          style={{ width: "100%", height: "auto", marginBottom: 8 }}
+          style={{
+            width: "75%",
+            height: "auto",
+            marginBottom: 8,
+            margin: "0 auto 8px auto",
+            display: "block",
+          }}
         />
         <h2
           style={{
@@ -78,13 +84,13 @@ export default function LoginPage() {
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
-                padding: "4px 8px",
+                padding: "5px 10px",
                 borderRadius: 4,
                 border: "1px solid #e1e5e9",
                 backgroundColor: loginType === "admin" ? "#0070f3" : "#f8f9fa",
                 color: loginType === "admin" ? "white" : "#6c757d",
                 fontWeight: loginType === "admin" ? "600" : "500",
-                fontSize: "12px",
+                fontSize: "13px",
                 transition: "all 0.2s ease",
                 flex: 1,
                 textAlign: "center",
@@ -106,14 +112,14 @@ export default function LoginPage() {
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
-                padding: "4px 8px",
+                padding: "5px 10px",
                 borderRadius: 4,
                 border: "1px solid #e1e5e9",
                 backgroundColor:
                   loginType === "service" ? "#0070f3" : "#f8f9fa",
                 color: loginType === "service" ? "white" : "#6c757d",
                 fontWeight: loginType === "service" ? "600" : "500",
-                fontSize: "12px",
+                fontSize: "13px",
                 transition: "all 0.2s ease",
                 flex: 1,
                 textAlign: "center",
@@ -139,11 +145,11 @@ export default function LoginPage() {
           onChange={(e) => setEmail(e.target.value)}
           style={{
             width: "100%",
-            padding: 8,
+            padding: 10,
             borderRadius: 4,
             border: "1px solid #ccc",
             marginBottom: 4,
-            fontSize: "13px",
+            fontSize: "14px",
           }}
         />
         <input
@@ -153,18 +159,18 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           style={{
             width: "100%",
-            padding: 8,
+            padding: 10,
             borderRadius: 4,
             border: "1px solid #ccc",
             marginBottom: 8,
-            fontSize: "13px",
+            fontSize: "14px",
           }}
         />
         <button
           onClick={handleLogin}
           style={{
             width: "100%",
-            padding: 8,
+            padding: 10,
             backgroundColor: "#0070f3",
             color: "white",
             border: "none",
