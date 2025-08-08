@@ -63,15 +63,15 @@ export default function LoginPage() {
           <label
             style={{
               display: "block",
-                          marginBottom: 4,
-            fontWeight: "bold",
-            color: "#555",
-            fontSize: "13px",
-          }}
-        >
-          Login Type
-        </label>
-        <div style={{ display: "flex", gap: 4 }}>
+              marginBottom: 4,
+              fontWeight: "bold",
+              color: "#555",
+              fontSize: "13px",
+            }}
+          >
+            Login Type
+          </label>
+          <div style={{ display: "flex", gap: 4 }}>
             <label
               style={{
                 display: "flex",
