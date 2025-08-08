@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", sans-serif;
+  background-color: #f9fafb;
+  color: #111827;
+}
+
+.dashboard {
+  display: grid;
+  grid-template-areas:
+    "header header"
+    "actions info"
+    "emergency emergency";
+  grid-template-columns: 1fr 2fr;
+  gap: 2rem;
+  padding: 3rem;
+  min-height: 100vh;
+}
+
+.dashboard__header {
+  grid-area: header;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dashboard__actions {
+  grid-area: actions;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dashboard__info {
+  grid-area: info;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.dashboard__emergency {
+  grid-area: emergency;
+  display: flex;
+  justify-content: center;
+}
+
+.card {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.primary-btn,
+.outline-btn,
+.emergency-btn {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.primary-btn {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+}
+
+.primary-btn.disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.outline-btn {
+  background-color: transparent;
+  border: 2px solid #2563eb;
+  color: #2563eb;
+}
+
+.outline-btn.disabled-outline {
+  border-color: #9ca3af;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.emergency-btn {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  padding: 1.25rem 2rem;
+  font-size: 1.2rem;
+}

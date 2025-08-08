@@ -1,0 +1,48 @@
+.
+├── README.md
+├── eslint.config.mjs
+├── next-env.d.ts
+├── next.config.ts
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── public
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── image.png
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+├── src
+│   ├── app
+│   │   ├── auth
+│   │   │   └── login.tsx
+│   │   ├── components
+│   │   │   ├── sideNav
+│   │   │   │   └── page.tsx
+│   │   │   ├── topNav
+│   │   │   │   └── page.tsx
+│   │   │   └── transition
+│   │   │       └── page.tsx
+│   │   ├── dashboard
+│   │   │   ├── analytics
+│   │   │   │   └── page.tsx
+│   │   │   ├── home
+│   │   │   │   └── page.tsx
+│   │   │   ├── layout.tsx
+│   │   │   ├── notifications
+│   │   │   │   └── page.tsx
+│   │   │   ├── reports
+│   │   │   │   └── page.tsx
+│   │   │   └── schedules
+│   │   │       └── page.tsx
+│   │   ├── favicon.ico
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   └── services
+│       └── firebaseConfig.ts
+├── structure.txt
+└── tsconfig.json
+
+16 directories, 30 files
