@@ -44,7 +44,18 @@ export default function Sidebar() {
       )}
     >
       <div className="flex items-center justify-between p-4">
-        {!collapsed && <span className="text-lg font-bold">Obsero</span>}
+        {!collapsed && (
+          <div className="flex items-center gap-2">
+            {/* <img src="/flow34.png" alt="Logo" className="w-8 h-8" /> */}
+            <span className="text-lg font-bold">Flow34</span>
+          </div>
+        )}
+        {collapsed && (
+          <div className="flex justify-center">
+            {/* <img src="/flow34.png" alt="Logo" className="w-8 h-8" /> */}
+            <strong>34</strong>
+          </div>
+        )}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="text-gray-500 hover:text-black"
