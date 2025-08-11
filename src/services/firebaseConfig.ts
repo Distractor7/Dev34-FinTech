@@ -1,22 +1,21 @@
-// src/services/firebaseConfig.ts
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
-import { getFirestore } from "firebase/firestore"; // ✅ import Firestore
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC5FM4moEQkN_pJJDc6_IuauKfd3sRrAC0",
-  authDomain: "obsero-4c05b.firebaseapp.com",
-  projectId: "obsero-4c05b",
-  storageBucket: "obsero-4c05b.appspot.com",
-  messagingSenderId: "842986928404",
-  appId: "1:842986928404:web:7b8495f6975a256157ea01",
-  measurementId: "G-23Q59Q8ZHV",
+  apiKey: "AIzaSyDQ-wTvan99kZal7EWXcve2RAQy966M0yk",
+  authDomain: "flow34-bad8e.firebaseapp.com",
+  projectId: "flow34-bad8e",
+  storageBucket: "flow34-bad8e.appspot.com",
+  messagingSenderId: "256044292068",
+  appId: "1:XXXXXXXXXXXX:web:YYYYYYYYYYYYYYYYY", // << fill in from Firebase
+  measurementId: "G-XXXXXXXXXX", // << if shown in your Firebase config
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const storage = getStorage(app);
-const db = getFirestore(app); // ✅ initialize Firestore
+const db = getFirestore(app);
 
-export { app, auth, storage, db }; // ✅ export db
+export { app, auth, storage, db };

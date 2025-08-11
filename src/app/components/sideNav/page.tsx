@@ -9,6 +9,9 @@ import {
   BarChart,
   ChevronLeft,
   ChevronRight,
+  Users,
+  Receipt,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import clsx from "clsx";
@@ -21,15 +24,24 @@ const navItems = [
     icon: <Bell size={20} />,
   },
   {
-    name: "Schedules",
-    href: "/dashboard/schedules",
-    icon: <Calendar size={20} />,
+    name: "Service Providers",
+    href: "/dashboard/service-providers",
+    icon: <Users size={20} />,
   },
-  { name: "Reports", href: "/dashboard/reports", icon: <FileText size={20} /> },
   {
     name: "Analytics",
     href: "/dashboard/analytics",
     icon: <BarChart size={20} />,
+  },
+  {
+    name: "Invoices",
+    href: "/dashboard/invoices",
+    icon: <Receipt size={20} />,
+  },
+  {
+    name: "Financial Reports",
+    href: "/dashboard/financial-reports",
+    icon: <TrendingUp size={20} />,
   },
 ];
 

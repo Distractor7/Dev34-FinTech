@@ -46,7 +46,7 @@ export default function LoginPage() {
           src="/flow34.png"
           alt="Login Graphic"
           style={{
-            width: "75%",
+            width: "85%",
             height: "auto",
             marginBottom: 8,
             margin: "0 auto 8px auto",
@@ -58,7 +58,8 @@ export default function LoginPage() {
             textAlign: "center",
             marginBottom: 8,
             color: "#333",
-            fontSize: "16px",
+            fontSize: "20px",
+            fontFamily: "Arial",
           }}
         >
           Welcome! Please log in

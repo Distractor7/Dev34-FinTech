@@ -3,8 +3,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Obsero Ops",
-  description: "Private security operations dashboard",
+  title: "Flow34",
+  description: "Revenue Tracking and Analytics System",
 };
 
 export default function RootLayout({
