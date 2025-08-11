@@ -19,7 +19,7 @@ export type Provider = {
   propertyIds: string[]; // IDs of properties where they operate
 };
 
-export type PeriodGranularity = "MONTH" | "WEEK";
+export type PeriodGranularity = "WEEK" | "MONTH" | "YEAR";
 
 export type PropertyFinancialAggregate = {
   propertyId: string;
