@@ -45,6 +45,33 @@ export interface Float34Api {
     byProvider: any[]; // ranked list
     series?: any[]; // one per provider OR one (if providerId specified)
   }>;
+  // New method for combined filtering
+  getCombinedFinancials(params: {
+    propertyId?: string;
+    providerId?: string;
+    from: string;
+    to: string;
+    granularity: PeriodGranularity;
+  }): Promise<{
+    summary: {
+      revenue: number;
+      expenses?: number;
+      profit?: number;
+      marginPct?: number;
+      invoicesPaidPct?: number;
+    };
+    byProperty: PropertyRankItem[];
+    byProvider: any[];
+    series?: any[];
+    combinedData?: {
+      propertyName: string;
+      providerName: string;
+      revenue: number;
+      profit?: number;
+      marginPct?: number;
+      invoicesPaidPct?: number;
+    }[];
+  }>;
 }
 
 export function getApi(): Float34Api {

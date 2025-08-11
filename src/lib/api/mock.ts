@@ -568,6 +568,259 @@ function buildMockServiceProviderFinancials({
   };
 }
 
+// Helper function to generate combined financial data for property + service provider
+function buildMockCombinedFinancials({
+  propertyId,
+  providerId,
+  from,
+  to,
+  granularity,
+}: {
+  propertyId?: string;
+  providerId?: string;
+  from: string;
+  to: string;
+  granularity: PeriodGranularity;
+}) {
+  const activeProperties = properties.filter((p) => p.status === "active");
+  const activeProviders = providers.filter((p) => p.status === "active");
+
+  // Get data based on granularity
+  let dataSource: any;
+  let periods: string[];
+
+  switch (granularity) {
+    case "WEEK":
+      dataSource = mockWeeklyData;
+      periods = [
+        "2024-W04",
+        "2024-W03",
+        "2024-W02",
+        "2024-W01",
+        "2023-W52",
+        "2023-W51",
+        "2023-W50",
+        "2023-W49",
+        "2023-W48",
+        "2023-W47",
+        "2023-W46",
+        "2023-W45",
+      ] as const;
+      break;
+    case "MONTH":
+      dataSource = mockFinancialData;
+      periods = [
+        "2024-01",
+        "2023-12",
+        "2023-11",
+        "2023-10",
+        "2023-09",
+      ] as const;
+      break;
+    case "YEAR":
+      dataSource = mockYearlyData;
+      periods = ["2024", "2023", "2022"] as const;
+      break;
+  }
+
+  const selectedPeriod = from || periods[0];
+  let totalRevenue = 0;
+  let totalExpenses = 0;
+  let totalProfit = 0;
+  let totalInvoicesPaid = 0;
+  let totalInvoices = 0;
+
+  const byProperty: PropertyRankItem[] = [];
+  const byProvider: any[] = [];
+  const series: any[] = [];
+  const combinedData: any[] = [];
+
+  if (propertyId && providerId) {
+    // Specific property + specific provider combination
+    const property = activeProperties.find((p) => p.id === propertyId);
+    const provider = activeProviders.find((p) => p.id === providerId);
+
+    if (property && provider && provider.propertyIds.includes(propertyId)) {
+      // Get the specific data for this property-provider combination
+      const currentPeriodData = dataSource[selectedPeriod]?.[propertyId];
+
+      if (currentPeriodData) {
+        totalRevenue = currentPeriodData.revenue;
+        totalExpenses = currentPeriodData.expenses || 0;
+        totalProfit = currentPeriodData.profit || 0;
+        totalInvoicesPaid = currentPeriodData.invoices.paid;
+        totalInvoices = currentPeriodData.invoices.total;
+
+        // Add to combined data
+        combinedData.push({
+          propertyName: property.name,
+          providerName: provider.name,
+          revenue: currentPeriodData.revenue,
+          profit: currentPeriodData.profit,
+          marginPct: currentPeriodData.marginPct,
+          invoicesPaidPct:
+            (currentPeriodData.invoices.paid /
+              currentPeriodData.invoices.total) *
+            100,
+        });
+
+        // Generate trend data
+        const trend = periods
+          .map((period) => {
+            const periodData = dataSource[period]?.[propertyId];
+            if (periodData) {
+              return {
+                label: period,
+                revenue: periodData.revenue,
+                profit: periodData.profit,
+              };
+            }
+            return { label: period, revenue: 0, profit: 0 };
+          })
+          .filter((t) => t.revenue > 0);
+
+        series.push({
+          propertyId: property.id,
+          propertyName: property.name,
+          providerId: provider.id,
+          providerName: provider.name,
+          periodFrom: from,
+          periodTo: to,
+          granularity,
+          currency: "USD",
+          revenue: currentPeriodData.revenue,
+          expenses: currentPeriodData.expenses,
+          profit: currentPeriodData.profit,
+          marginPct: currentPeriodData.marginPct,
+          invoices: currentPeriodData.invoices,
+          revenueDeltaPct: currentPeriodData.revenueDeltaPct,
+          profitDeltaPct: currentPeriodData.profitDeltaPct,
+          trend,
+        });
+      }
+    }
+  } else if (propertyId) {
+    // Only property specified - get all providers for that property
+    const property = activeProperties.find((p) => p.id === propertyId);
+    if (property) {
+      const propertyProviders = activeProviders.filter((p) =>
+        p.propertyIds.includes(propertyId)
+      );
+
+      propertyProviders.forEach((provider) => {
+        const currentPeriodData = dataSource[selectedPeriod]?.[propertyId];
+        if (currentPeriodData) {
+          totalRevenue += currentPeriodData.revenue;
+          totalExpenses += currentPeriodData.expenses || 0;
+          totalProfit += currentPeriodData.profit || 0;
+          totalInvoicesPaid += currentPeriodData.invoices.paid;
+          totalInvoices += currentPeriodData.invoices.total;
+
+          combinedData.push({
+            propertyName: property.name,
+            providerName: provider.name,
+            revenue: currentPeriodData.revenue,
+            profit: currentPeriodData.profit,
+            marginPct: currentPeriodData.marginPct,
+            invoicesPaidPct:
+              (currentPeriodData.invoices.paid /
+                currentPeriodData.invoices.total) *
+              100,
+          });
+        }
+      });
+    }
+  } else if (providerId) {
+    // Only provider specified - get all properties for that provider
+    const provider = activeProviders.find((p) => p.id === providerId);
+    if (provider) {
+      provider.propertyIds.forEach((propId) => {
+        const property = activeProperties.find((p) => p.id === propId);
+        if (property) {
+          const currentPeriodData = dataSource[selectedPeriod]?.[propId];
+          if (currentPeriodData) {
+            totalRevenue += currentPeriodData.revenue;
+            totalExpenses += currentPeriodData.expenses || 0;
+            totalProfit += currentPeriodData.profit || 0;
+            totalInvoicesPaid += currentPeriodData.invoices.paid;
+            totalInvoices += currentPeriodData.invoices.total;
+
+            combinedData.push({
+              propertyName: property.name,
+              providerName: provider.name,
+              revenue: currentPeriodData.revenue,
+              profit: currentPeriodData.profit,
+              marginPct: currentPeriodData.marginPct,
+              invoicesPaidPct:
+                (currentPeriodData.invoices.paid /
+                  currentPeriodData.invoices.total) *
+                100,
+            });
+          }
+        }
+      });
+    }
+  } else {
+    // No filters - get all data (existing logic)
+    const existingData = buildMockPropertyFinancials({
+      propertyId,
+      from,
+      to,
+      granularity,
+    });
+    return {
+      ...existingData,
+      byProvider: [],
+      combinedData: [],
+    };
+  }
+
+  // Build property and provider rankings
+  if (propertyId) {
+    byProperty.push({
+      propertyId: propertyId,
+      propertyName:
+        activeProperties.find((p) => p.id === propertyId)?.name || "",
+      revenue: totalRevenue,
+      profit: totalProfit,
+      marginPct:
+        totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : undefined,
+      invoicesPaidPct:
+        totalInvoices > 0 ? (totalInvoicesPaid / totalInvoices) * 100 : 0,
+    });
+  }
+
+  if (providerId) {
+    byProvider.push({
+      providerId: providerId,
+      providerName:
+        activeProviders.find((p) => p.id === providerId)?.name || "",
+      revenue: totalRevenue,
+      profit: totalProfit,
+      marginPct:
+        totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : undefined,
+      invoicesPaidPct:
+        totalInvoices > 0 ? (totalInvoicesPaid / totalInvoices) * 100 : 0,
+    });
+  }
+
+  return {
+    summary: {
+      revenue: totalRevenue,
+      expenses: totalExpenses > 0 ? totalExpenses : undefined,
+      profit: totalProfit > 0 ? totalProfit : undefined,
+      marginPct:
+        totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : undefined,
+      invoicesPaidPct:
+        totalInvoices > 0 ? (totalInvoicesPaid / totalInvoices) * 100 : 0,
+    },
+    byProperty,
+    byProvider,
+    series,
+    combinedData,
+  };
+}
+
 export class MockApi implements Float34Api {
   async listProperties(): Promise<Property[]> {
     await sleep(100);
@@ -635,6 +888,37 @@ export class MockApi implements Float34Api {
     series?: any[];
   }> {
     const data = buildMockServiceProviderFinancials(params);
+    await sleep(150);
+    return data;
+  }
+
+  async getCombinedFinancials(params: {
+    propertyId?: string;
+    providerId?: string;
+    from: string;
+    to: string;
+    granularity: PeriodGranularity;
+  }): Promise<{
+    summary: {
+      revenue: number;
+      expenses?: number;
+      profit?: number;
+      marginPct?: number;
+      invoicesPaidPct?: number;
+    };
+    byProperty: PropertyRankItem[];
+    byProvider: any[];
+    series?: any[];
+    combinedData?: {
+      propertyName: string;
+      providerName: string;
+      revenue: number;
+      profit?: number;
+      marginPct?: number;
+      invoicesPaidPct?: number;
+    }[];
+  }> {
+    const data = buildMockCombinedFinancials(params);
     await sleep(150);
     return data;
   }

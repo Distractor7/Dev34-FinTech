@@ -138,19 +138,92 @@ function PropertySelect({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const selectedProperty = properties.find((p) => p.id === value);
+
+  const filteredProperties = properties.filter(
+    (property) =>
+      property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property.address?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleClear = () => {
+    onChange("");
+    setSearchTerm("");
+    setIsOpen(false);
+  };
+
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-    >
-      <option value="">All Properties</option>
-      {properties.map((property) => (
-        <option key={property.id} value={property.id}>
-          {property.name}
-        </option>
-      ))}
-    </select>
+    <div className="relative">
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search properties..."
+          value={searchTerm || (selectedProperty ? selectedProperty.name : "")}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onFocus={() => setIsOpen(true)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        {value ? (
+          <button
+            onClick={handleClear}
+            className="absolute right-8 top-2.5 text-gray-400 hover:text-gray-600"
+          >
+            <X size={16} />
+          </button>
+        ) : (
+          <Building
+            className="absolute right-3 top-2.5 text-gray-400"
+            size={16}
+          />
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+          <div className="p-2">
+            <div className="text-xs text-gray-500 mb-2 px-2">
+              Select a property:
+            </div>
+            {filteredProperties.length === 0 ? (
+              <div className="text-sm text-gray-500 px-2 py-1">
+                No properties found
+              </div>
+            ) : (
+              filteredProperties.map((property) => (
+                <button
+                  key={property.id}
+                  onClick={() => {
+                    onChange(property.id);
+                    setSearchTerm("");
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-2 py-2 text-sm rounded hover:bg-gray-100 ${
+                    value === property.id
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-gray-900"
+                  }`}
+                >
+                  <div className="font-medium">{property.name}</div>
+                  {property.address && (
+                    <div className="text-xs text-gray-500 truncate">
+                      {property.address}
+                    </div>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close */}
+      {isOpen && (
+        <div className="fixed inset-0 z-0" onClick={() => setIsOpen(false)} />
+      )}
+    </div>
   );
 }
 
@@ -164,19 +237,90 @@ function ServiceProviderSelect({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const selectedProvider = providers.find((p) => p.id === value);
+
+  const filteredProviders = providers.filter(
+    (provider) =>
+      provider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      provider.service.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleClear = () => {
+    onChange("");
+    setSearchTerm("");
+    setIsOpen(false);
+  };
+
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-    >
-      <option value="">All Service Providers</option>
-      {providers.map((provider) => (
-        <option key={provider.id} value={provider.id}>
-          {provider.name}
-        </option>
-      ))}
-    </select>
+    <div className="relative">
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search service providers..."
+          value={searchTerm || (selectedProvider ? selectedProvider.name : "")}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onFocus={() => setIsOpen(true)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        {value ? (
+          <button
+            onClick={handleClear}
+            className="absolute right-8 top-2.5 text-gray-400 hover:text-gray-600"
+          >
+            <X size={16} />
+          </button>
+        ) : (
+          <Activity
+            className="absolute right-3 top-2.5 text-gray-400"
+            size={16}
+          />
+        )}
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+          <div className="p-2">
+            <div className="text-xs text-gray-500 mb-2 px-2">
+              Select a service provider:
+            </div>
+            {filteredProviders.length === 0 ? (
+              <div className="text-sm text-gray-500 px-2 py-1">
+                No providers found
+              </div>
+            ) : (
+              filteredProviders.map((provider) => (
+                <button
+                  key={provider.id}
+                  onClick={() => {
+                    onChange(provider.id);
+                    setSearchTerm("");
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-2 py-2 text-sm rounded hover:bg-gray-100 ${
+                    value === provider.id
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-gray-900"
+                  }`}
+                >
+                  <div className="font-medium">{provider.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {provider.service}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close */}
+      {isOpen && (
+        <div className="fixed inset-0 z-0" onClick={() => setIsOpen(false)} />
+      )}
+    </div>
   );
 }
 
@@ -886,6 +1030,228 @@ function InvoicePerformanceTable({
   );
 }
 
+// Combined Property-Provider Performance Component
+function CombinedPerformanceTable({
+  combinedData,
+  height = "h-80",
+}: {
+  combinedData: any[];
+  height?: string;
+}) {
+  if (!combinedData || combinedData.length === 0) {
+    return (
+      <div className={`bg-white rounded-lg shadow-sm border p-6 ${height}`}>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <BarChart3 className="mx-auto mb-4 text-gray-400" size={48} />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Combined Performance
+            </h3>
+            <p className="text-sm text-gray-600">No combined data available</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const maxRevenue = Math.max(...combinedData.map((item) => item.revenue));
+
+  return (
+    <div className={`bg-white rounded-lg shadow-sm border p-6 ${height}`}>
+      <div className="flex items-center gap-3 mb-4">
+        <BarChart3 className="text-indigo-600" size={24} />
+        <h3 className="text-lg font-medium text-gray-900">
+          Property-Service Provider Performance
+        </h3>
+      </div>
+      <div className="space-y-4">
+        {combinedData.slice(0, 8).map((item, index) => (
+          <div
+            key={`${item.propertyName}-${item.providerName}`}
+            className="space-y-2"
+          >
+            <div className="flex justify-between text-sm">
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-gray-900 truncate">
+                  {item.propertyName}
+                </div>
+                <div className="text-xs text-gray-500 truncate">
+                  {item.providerName}
+                </div>
+              </div>
+              <span className="text-gray-600 ml-2">
+                {formatCurrency(item.revenue)}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-indigo-500 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${(item.revenue / maxRevenue) * 100}%` }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>
+                Profit: {item.profit ? formatCurrency(item.profit) : "N/A"}
+              </span>
+              <span>
+                Margin:{" "}
+                {item.marginPct ? `${item.marginPct.toFixed(1)}%` : "N/A"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Quick Filter Suggestions Component
+function QuickFilterSuggestions({
+  properties,
+  providers,
+  onPropertySelect,
+  onProviderSelect,
+}: {
+  properties: Property[];
+  providers: any[];
+  onPropertySelect: (propertyId: string) => void;
+  onProviderSelect: (providerId: string) => void;
+}) {
+  const activeProperties = properties.filter((p) => p.status === "active");
+  const activeProviders = providers.filter((p) => p.status === "active");
+
+  // Get some sample combinations for suggestions
+  const suggestions = activeProperties
+    .slice(0, 3)
+    .map((property) => {
+      const propertyProviders = activeProviders.filter((p) =>
+        p.propertyIds.includes(property.id)
+      );
+      return {
+        property,
+        providers: propertyProviders.slice(0, 2), // Show max 2 providers per property
+      };
+    })
+    .filter((s) => s.providers.length > 0);
+
+  if (suggestions.length === 0) return null;
+
+  return (
+    <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+      <div className="flex items-center gap-2 mb-3">
+        <BarChart3 size={16} className="text-gray-600" />
+        <h3 className="text-sm font-medium text-gray-900">
+          Quick Filter Suggestions
+        </h3>
+      </div>
+      <p className="text-sm text-gray-600 mb-3">
+        Try these common property-service provider combinations for focused
+        analysis:
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {suggestions.map((suggestion) => (
+          <div
+            key={suggestion.property.id}
+            className="p-3 bg-white rounded border"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Building size={14} className="text-gray-500" />
+              <span className="text-sm font-medium text-gray-900">
+                {suggestion.property.name}
+              </span>
+            </div>
+            <div className="space-y-1">
+              {suggestion.providers.map((provider) => (
+                <button
+                  key={provider.id}
+                  onClick={() => {
+                    onPropertySelect(suggestion.property.id);
+                    onProviderSelect(provider.id);
+                  }}
+                  className="w-full text-left p-2 text-xs text-purple-700 bg-purple-50 rounded hover:bg-purple-100 transition-colors"
+                >
+                  <div className="flex items-center gap-1">
+                    <Activity size={12} />
+                    <span className="truncate">{provider.name}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Filter Validation Component
+function FilterValidation({
+  propertyId,
+  providerId,
+  properties,
+  providers,
+  onPropertyChange,
+  onProviderChange,
+}: {
+  propertyId: string;
+  providerId: string;
+  properties: Property[];
+  providers: any[];
+  onPropertyChange: (value: string) => void;
+  onProviderChange: (value: string) => void;
+}) {
+  if (!propertyId || !providerId) return null;
+
+  const property = properties.find((p) => p.id === propertyId);
+  const provider = providers.find((p) => p.id === providerId);
+
+  if (!property || !provider) return null;
+
+  // Check if the provider actually operates at the selected property
+  const providerOperatesAtProperty = provider.propertyIds.includes(propertyId);
+
+  if (!providerOperatesAtProperty) {
+    return (
+      <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="flex items-start gap-3">
+          <div className="text-red-600 mt-0.5">
+            <X size={16} />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-900 mb-2">
+              Invalid Filter Combination
+            </p>
+            <p className="text-sm text-red-700 mb-3">
+              <strong>{provider.name}</strong> does not operate at{" "}
+              <strong>{property.name}</strong>. This combination will not return
+              any data.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => onPropertyChange("")}
+                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+              >
+                Clear Property Filter
+              </button>
+              <button
+                onClick={() => onProviderChange("")}
+                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+              >
+                Clear Provider Filter
+              </button>
+              <span className="text-xs text-red-600 self-center">
+                Or select a valid combination
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function AnalyticsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -922,6 +1288,7 @@ export default function AnalyticsPage() {
     byProvider: any[];
     series?: any[];
   } | null>(null);
+  const [combinedData, setCombinedData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Get selected property name for display
@@ -932,22 +1299,52 @@ export default function AnalyticsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getApi().getPropertyFinancials({
+      // Use the new combined API for better filtering precision
+      const combinedData = await getApi().getCombinedFinancials({
         propertyId: propertyId || undefined,
+        providerId: providerId || undefined,
         from,
         to: from, // Use same period for analytics
         granularity,
       });
-      setFinancialData(data);
-
-      // Also fetch service provider data
-      const providerData = await getApi().getServiceProviderFinancials({
-        providerId: providerId || undefined,
-        from,
-        to: from,
-        granularity,
-      });
-      setServiceProviderData(providerData);
+      
+      // Set combined data for the new combined performance table
+      setCombinedData(combinedData.combinedData || []);
+      
+      // For financial data, we need to ensure we have the right structure
+      if (propertyId && providerId) {
+        // Both filters active - use the combined data structure
+        setFinancialData({
+          summary: combinedData.summary,
+          byProperty: combinedData.byProperty,
+          series: combinedData.series || [],
+        });
+        
+        setServiceProviderData({
+          summary: combinedData.summary,
+          byProvider: combinedData.byProvider,
+          series: combinedData.series || [],
+        });
+      } else {
+        // Single filter or no filter - fall back to individual APIs for better data structure
+        const [propertyData, providerData] = await Promise.all([
+          getApi().getPropertyFinancials({
+            propertyId: propertyId || undefined,
+            from,
+            to: from,
+            granularity,
+          }),
+          getApi().getServiceProviderFinancials({
+            providerId: providerId || undefined,
+            from,
+            to: from,
+            granularity,
+          }),
+        ]);
+        
+        setFinancialData(propertyData);
+        setServiceProviderData(providerData);
+      }
     } catch (error) {
       console.error("Error fetching financial data:", error);
     } finally {
@@ -1068,13 +1465,96 @@ export default function AnalyticsPage() {
           Financial Analytics
         </h1>
         <p className="text-gray-600">
-          {propertyId
+          {propertyId && providerId
+            ? `Performance analysis for ${selectedProvider?.name} at ${selectedProperty?.name}`
+            : propertyId
             ? `In-depth analysis for ${selectedProperty?.name}`
             : providerId
             ? `In-depth analysis for ${selectedProvider?.name}`
             : "Comprehensive financial performance analysis across all properties and service providers"}{" "}
           • {formatPeriodLabel(from, granularity)}
         </p>
+
+        {/* Smart Filter Suggestions */}
+        {!propertyId && !providerId && (
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="text-blue-600 mt-0.5">
+                <Building size={16} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900 mb-1">
+                  Filtering Tips
+                </p>
+                <p className="text-sm text-blue-700">
+                  For precise analysis, try filtering by property and/or service
+                  provider. You can combine both filters to see specific
+                  provider performance at specific properties.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {propertyId && !providerId && (
+          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="text-green-600 mt-0.5">
+                <Building size={16} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-900 mb-1">
+                  Property Analysis Active
+                </p>
+                <p className="text-sm text-green-700">
+                  Viewing data for {selectedProperty?.name}. Add a service
+                  provider filter to see specific provider performance at this
+                  property.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {providerId && !propertyId && (
+          <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="text-purple-600 mt-0.5">
+                <Activity size={16} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-purple-900 mb-1">
+                  Service Provider Analysis Active
+                </p>
+                <p className="text-sm text-purple-700">
+                  Viewing data for {selectedProvider?.name}. Add a property
+                  filter to see this provider's performance at specific
+                  properties.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {propertyId && providerId && (
+          <div className="mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="text-indigo-600 mt-0.5">
+                <BarChart3 size={16} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-indigo-900 mb-1">
+                  Combined Analysis Active
+                </p>
+                <p className="text-sm text-indigo-700">
+                  Viewing precise performance data for {selectedProvider?.name}{" "}
+                  at {selectedProperty?.name}. This shows the specific
+                  relationship between this provider and property.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filters Bar */}
@@ -1198,6 +1678,111 @@ export default function AnalyticsPage() {
         )}
       </div>
 
+      {/* Filter Validation */}
+      <FilterValidation
+        propertyId={propertyId}
+        providerId={providerId}
+        properties={properties}
+        providers={providers}
+        onPropertyChange={handlePropertyChange}
+        onProviderChange={handleProviderChange}
+      />
+
+      {/* Data Summary Section */}
+      <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity size={16} className="text-gray-600" />
+          <h3 className="text-sm font-medium text-gray-900">
+            Data Scope Summary
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+          <div>
+            <span className="text-gray-600">Properties:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {propertyId
+                ? "1 (Filtered)"
+                : `${
+                    properties.filter((p) => p.status === "active").length
+                  } (All Active)`}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Service Providers:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {providerId
+                ? "1 (Filtered)"
+                : `${
+                    providers.filter((p) => p.status === "active").length
+                  } (All Active)`}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Time Period:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {formatPeriodLabel(from, granularity)}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Data Granularity:</span>
+            <span className="ml-2 font-medium text-gray-900 capitalize">
+              {granularity.toLowerCase()}
+            </span>
+          </div>
+        </div>
+
+        {propertyId && providerId && (
+          <div className="mt-3 p-3 bg-indigo-100 border border-indigo-200 rounded">
+            <p className="text-sm text-indigo-800">
+              <strong>Precise Filter:</strong> Showing data for{" "}
+              {selectedProvider?.name} specifically at {selectedProperty?.name}.
+              This represents the exact relationship between this service
+              provider and property location.
+            </p>
+          </div>
+        )}
+
+        {propertyId && !providerId && (
+          <div className="mt-3 p-3 bg-green-100 border border-green-200 rounded">
+            <p className="text-sm text-green-800">
+              <strong>Property Filter:</strong> Showing data for{" "}
+              {selectedProperty?.name} across all service providers. This gives
+              you a comprehensive view of the property's performance.
+            </p>
+          </div>
+        )}
+
+        {providerId && !propertyId && (
+          <div className="mt-3 p-3 bg-purple-100 border border-purple-200 rounded">
+            <p className="text-sm text-purple-800">
+              <strong>Service Provider Filter:</strong> Showing data for{" "}
+              {selectedProvider?.name} across all properties. This gives you a
+              comprehensive view of the provider's performance.
+            </p>
+          </div>
+        )}
+
+        {!propertyId && !providerId && (
+          <div className="mt-3 p-3 bg-blue-100 border border-blue-200 rounded">
+            <p className="text-sm text-blue-800">
+              <strong>Aggregate View:</strong> Showing combined data across all
+              properties and service providers. Use filters to drill down into
+              specific relationships.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Filter Suggestions */}
+      {!propertyId && !providerId && (
+        <QuickFilterSuggestions
+          properties={properties}
+          providers={providers}
+          onPropertySelect={handlePropertyChange}
+          onProviderSelect={handleProviderChange}
+        />
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KPICard
@@ -1263,8 +1848,18 @@ export default function AnalyticsPage() {
           height="h-[500px]"
         />
 
-        {/* Property Performance Comparison */}
-        <PropertyPerformanceTable byProperty={byProperty} height="h-[500px]" />
+        {/* Property Performance Comparison or Combined Performance */}
+        {propertyId && providerId ? (
+          <CombinedPerformanceTable
+            combinedData={combinedData}
+            height="h-[500px]"
+          />
+        ) : (
+          <PropertyPerformanceTable
+            byProperty={byProperty}
+            height="h-[500px]"
+          />
+        )}
       </div>
 
       {/* Additional Analytics */}
@@ -1555,6 +2150,20 @@ export default function AnalyticsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Combined Performance Table */}
+      {combinedData && combinedData.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-8">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Combined Performance ({formatPeriodLabel(from, granularity)})
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <CombinedPerformanceTable combinedData={combinedData} />
           </div>
         </div>
       )}
