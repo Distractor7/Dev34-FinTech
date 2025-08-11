@@ -452,10 +452,13 @@ function RevenueTrendChart({
   // Check if we have aggregated data for all properties
   const aggregatedSeries = series.find(
     (item) =>
-      item.propertyId === "all" || item.propertyName === "All Properties"
+      item.propertyId === "all" || 
+      item.propertyName === "All Properties" ||
+      item.providerId === "all" ||
+      item.providerName === "All Service Providers"
   );
 
-  if (aggregatedSeries && aggregatedSeries.trend) {
+  if (aggregatedSeries && aggregatedSeries.trend && aggregatedSeries.trend.length > 0) {
     // Use aggregated data for all properties view
     chartData = aggregatedSeries.trend
       .map((item: any) => ({
@@ -470,13 +473,13 @@ function RevenueTrendChart({
       chartData = chartData.slice(-8); // Show last 8 periods
     }
   } else {
-    // Fallback to individual property aggregation (existing logic)
+    // Fallback to individual property/provider aggregation
     if (granularity === "WEEK") {
-      // For weekly view, aggregate data across all properties for each week
+      // For weekly view, aggregate data across all items for each week
       const weeklyData: { [key: string]: number } = {};
 
       series.forEach((item) => {
-        if (item.trend) {
+        if (item.trend && Array.isArray(item.trend)) {
           item.trend.forEach((trendItem: any) => {
             if (!weeklyData[trendItem.label]) {
               weeklyData[trendItem.label] = 0;
@@ -496,11 +499,11 @@ function RevenueTrendChart({
         .sort((a, b) => a.shortLabel.localeCompare(b.shortLabel))
         .slice(-8); // Show last 8 weeks
     } else if (granularity === "YEAR") {
-      // For yearly view, aggregate data across all properties for each year
+      // For yearly view, aggregate data across all items for each year
       const yearlyData: { [key: string]: number } = {};
 
       series.forEach((item) => {
-        if (item.trend) {
+        if (item.trend && Array.isArray(item.trend)) {
           item.trend.forEach((trendItem: any) => {
             if (!yearlyData[trendItem.label]) {
               yearlyData[trendItem.label] = 0;
@@ -519,11 +522,11 @@ function RevenueTrendChart({
         }))
         .sort((a, b) => a.shortLabel.localeCompare(b.shortLabel));
     } else {
-      // For monthly view, use existing logic but ensure we get data from all properties
+      // For monthly view, aggregate data across all items for each month
       const monthlyData: { [key: string]: number } = {};
 
       series.forEach((item) => {
-        if (item.trend) {
+        if (item.trend && Array.isArray(item.trend)) {
           item.trend.forEach((trendItem: any) => {
             if (!monthlyData[trendItem.label]) {
               monthlyData[trendItem.label] = 0;
@@ -545,6 +548,19 @@ function RevenueTrendChart({
     }
   }
 
+  // If we still don't have chart data, try to create it from the series items themselves
+  if (chartData.length === 0 && series.length > 0) {
+    // Create a simple chart from the series data
+    chartData = series
+      .filter(item => item.revenue > 0)
+      .map((item, index) => ({
+        period: item.propertyName || item.providerName || `Item ${index + 1}`,
+        revenue: item.revenue,
+        shortLabel: item.propertyName || item.providerName || `Item ${index + 1}`,
+      }))
+      .slice(0, 8); // Show up to 8 items
+  }
+
   if (chartData.length === 0) {
     return (
       <div className={`bg-white rounded-lg shadow-sm border p-6 ${height}`}>
@@ -555,6 +571,9 @@ function RevenueTrendChart({
               Revenue Trend
             </h3>
             <p className="text-sm text-gray-600">No trend data available</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Try adjusting your filters or time period
+            </p>
           </div>
         </div>
       </div>
@@ -1307,10 +1326,10 @@ export default function AnalyticsPage() {
         to: from, // Use same period for analytics
         granularity,
       });
-      
+
       // Set combined data for the new combined performance table
       setCombinedData(combinedData.combinedData || []);
-      
+
       // For financial data, we need to ensure we have the right structure
       if (propertyId && providerId) {
         // Both filters active - use the combined data structure
@@ -1319,7 +1338,7 @@ export default function AnalyticsPage() {
           byProperty: combinedData.byProperty,
           series: combinedData.series || [],
         });
-        
+
         setServiceProviderData({
           summary: combinedData.summary,
           byProvider: combinedData.byProvider,
@@ -1341,7 +1360,7 @@ export default function AnalyticsPage() {
             granularity,
           }),
         ]);
-        
+
         setFinancialData(propertyData);
         setServiceProviderData(providerData);
       }
