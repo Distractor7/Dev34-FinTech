@@ -452,13 +452,17 @@ function RevenueTrendChart({
   // Check if we have aggregated data for all properties
   const aggregatedSeries = series.find(
     (item) =>
-      item.propertyId === "all" || 
+      item.propertyId === "all" ||
       item.propertyName === "All Properties" ||
       item.providerId === "all" ||
       item.providerName === "All Service Providers"
   );
 
-  if (aggregatedSeries && aggregatedSeries.trend && aggregatedSeries.trend.length > 0) {
+  if (
+    aggregatedSeries &&
+    aggregatedSeries.trend &&
+    aggregatedSeries.trend.length > 0
+  ) {
     // Use aggregated data for all properties view
     chartData = aggregatedSeries.trend
       .map((item: any) => ({
@@ -552,11 +556,12 @@ function RevenueTrendChart({
   if (chartData.length === 0 && series.length > 0) {
     // Create a simple chart from the series data
     chartData = series
-      .filter(item => item.revenue > 0)
+      .filter((item) => item.revenue > 0)
       .map((item, index) => ({
         period: item.propertyName || item.providerName || `Item ${index + 1}`,
         revenue: item.revenue,
-        shortLabel: item.propertyName || item.providerName || `Item ${index + 1}`,
+        shortLabel:
+          item.propertyName || item.providerName || `Item ${index + 1}`,
       }))
       .slice(0, 8); // Show up to 8 items
   }
