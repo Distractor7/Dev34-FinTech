@@ -664,7 +664,7 @@ function buildMockCombinedFinancials({
             100,
         });
 
-        // Generate trend data
+        // Generate trend data for all periods to show historical performance
         const trend = periods
           .map((period) => {
             const periodData = dataSource[period]?.[propertyId];
@@ -684,6 +684,24 @@ function buildMockCombinedFinancials({
           propertyName: property.name,
           providerId: provider.id,
           providerName: provider.name,
+          periodFrom: from,
+          periodTo: to,
+          granularity,
+          currency: "USD",
+          revenue: currentPeriodData.revenue,
+          expenses: currentPeriodData.expenses,
+          profit: currentPeriodData.profit,
+          marginPct: currentPeriodData.marginPct,
+          invoices: currentPeriodData.invoices,
+          revenueDeltaPct: currentPeriodData.revenueDeltaPct,
+          profitDeltaPct: currentPeriodData.profitDeltaPct,
+          trend,
+        });
+
+        // Also add an aggregated item for chart compatibility
+        series.push({
+          propertyId: "combined",
+          propertyName: `${property.name} + ${provider.name}`,
           periodFrom: from,
           periodTo: to,
           granularity,
@@ -729,6 +747,43 @@ function buildMockCombinedFinancials({
           });
         }
       });
+
+      // Generate aggregated trend data for the property
+      const aggregatedTrend = periods
+        .map((period) => {
+          const periodData = dataSource[period]?.[propertyId];
+          if (periodData) {
+            return {
+              label: period,
+              revenue: periodData.revenue,
+              profit: periodData.profit,
+            };
+          }
+          return { label: period, revenue: 0, profit: 0 };
+        })
+        .filter((t) => t.revenue > 0);
+
+      // Add aggregated series item for the property
+      series.push({
+        propertyId: property.id,
+        propertyName: property.name,
+        periodFrom: from,
+        periodTo: to,
+        granularity,
+        currency: "USD",
+        revenue: totalRevenue,
+        expenses: totalExpenses > 0 ? totalExpenses : undefined,
+        profit: totalProfit > 0 ? totalProfit : undefined,
+        marginPct:
+          totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : undefined,
+        invoices: {
+          paid: totalInvoicesPaid,
+          total: totalInvoices,
+        },
+        revenueDeltaPct: undefined,
+        profitDeltaPct: undefined,
+        trend: aggregatedTrend,
+      });
     }
   } else if (providerId) {
     // Only provider specified - get all properties for that provider
@@ -758,6 +813,50 @@ function buildMockCombinedFinancials({
             });
           }
         }
+      });
+
+      // Generate aggregated trend data for the provider across all properties
+      const aggregatedTrend = periods
+        .map((period) => {
+          let periodTotalRevenue = 0;
+          let periodTotalProfit = 0;
+
+          provider.propertyIds.forEach((propId) => {
+            const periodData = dataSource[period]?.[propId];
+            if (periodData) {
+              periodTotalRevenue += periodData.revenue;
+              periodTotalProfit += periodData.profit || 0;
+            }
+          });
+
+          return {
+            label: period,
+            revenue: periodTotalRevenue,
+            profit: periodTotalProfit,
+          };
+        })
+        .filter((t) => t.revenue > 0);
+
+      // Add aggregated series item for the provider
+      series.push({
+        providerId: provider.id,
+        providerName: provider.name,
+        periodFrom: from,
+        periodTo: to,
+        granularity,
+        currency: "USD",
+        revenue: totalRevenue,
+        expenses: totalExpenses > 0 ? totalExpenses : undefined,
+        profit: totalProfit > 0 ? totalProfit : undefined,
+        marginPct:
+          totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : undefined,
+        invoices: {
+          paid: totalInvoicesPaid,
+          total: totalInvoices,
+        },
+        revenueDeltaPct: undefined,
+        profitDeltaPct: undefined,
+        trend: aggregatedTrend,
       });
     }
   } else {

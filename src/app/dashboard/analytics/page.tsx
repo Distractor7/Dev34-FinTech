@@ -27,6 +27,8 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
+  BarChart,
+  Bar,
 } from "recharts";
 
 // Helper functions
@@ -1276,6 +1278,139 @@ function FilterValidation({
   return null;
 }
 
+// Fallback Chart Component for when trend data is missing
+function FallbackRevenueChart({
+  series,
+  granularity,
+  height = "h-80",
+}: {
+  series: any[];
+  granularity: PeriodGranularity;
+  height?: string;
+}) {
+  if (!series || series.length === 0) {
+    return (
+      <div className={`bg-white rounded-lg shadow-sm border p-6 ${height}`}>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <BarChart3 className="mx-auto mb-4 text-gray-400" size={48} />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Revenue Overview
+            </h3>
+            <p className="text-sm text-gray-600">No data available</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Create chart data from the series items themselves
+  const chartData = series
+    .filter((item) => item.revenue > 0)
+    .map((item, index) => ({
+      name: item.propertyName || item.providerName || `Item ${index + 1}`,
+      revenue: item.revenue,
+      profit: item.profit || 0,
+    }))
+    .slice(0, 8); // Show up to 8 items
+
+  if (chartData.length === 0) {
+    return (
+      <div className={`bg-white rounded-lg shadow-sm border p-6 ${height}`}>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <BarChart3 className="mx-auto mb-4 text-gray-400" size={48} />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Revenue Overview
+            </h3>
+            <p className="text-sm text-gray-600">No revenue data available</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const maxRevenue = Math.max(...chartData.map((item) => item.revenue));
+
+  return (
+    <div className={`bg-white rounded-lg shadow-sm border p-6 ${height}`}>
+      <div className="flex items-center gap-3 mb-4">
+        <BarChart3 className="text-blue-600" size={24} />
+        <h3 className="text-lg font-medium text-gray-900">Revenue Overview</h3>
+        <span className="text-sm text-gray-500 capitalize">
+          ({granularity.toLowerCase()})
+        </span>
+      </div>
+
+      {/* Bar Chart */}
+      <div className="w-full h-80 mb-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData}
+            margin={{ top: 5, right: 30, left: 20, bottom: 35 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis
+              dataKey="name"
+              stroke="#6B7280"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              dy={15}
+              angle={-45}
+              textAnchor="end"
+            />
+            <YAxis
+              stroke="#6B7280"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(value) =>
+                formatCurrency(value, "USD").replace("$", "")
+              }
+            />
+            <Tooltip
+              formatter={(value: any) => [formatCurrency(value), "Revenue"]}
+              labelFormatter={(label) => `Item: ${label}`}
+              contentStyle={{
+                backgroundColor: "white",
+                border: "1px solid #E5E7EB",
+                borderRadius: "8px",
+                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+              }}
+            />
+            <Bar dataKey="revenue" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Summary stats below the chart */}
+      <div className="grid grid-cols-3 gap-4 text-center">
+        <div>
+          <div className="text-sm text-gray-600">Highest</div>
+          <div className="text-lg font-semibold text-green-600">
+            {formatCurrency(maxRevenue)}
+          </div>
+        </div>
+        <div>
+          <div className="text-sm text-gray-600">Total</div>
+          <div className="text-lg font-semibold text-blue-600">
+            {formatCurrency(
+              chartData.reduce((sum, item) => sum + item.revenue, 0)
+            )}
+          </div>
+        </div>
+        <div>
+          <div className="text-sm text-gray-600">Items</div>
+          <div className="text-lg font-semibold text-purple-600">
+            {chartData.length}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -1865,12 +2000,20 @@ export default function AnalyticsPage() {
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Revenue Trend Chart */}
-        <RevenueTrendChart
-          series={series || []}
-          granularity={granularity}
-          height="h-[500px]"
-        />
+        {/* Revenue Trend Chart or Fallback Chart */}
+        {series && series.some((s) => s.trend && s.trend.length > 0) ? (
+          <RevenueTrendChart
+            series={series}
+            granularity={granularity}
+            height="h-[500px]"
+          />
+        ) : (
+          <FallbackRevenueChart
+            series={series || []}
+            granularity={granularity}
+            height="h-[500px]"
+          />
+        )}
 
         {/* Property Performance Comparison or Combined Performance */}
         {propertyId && providerId ? (
@@ -1885,6 +2028,55 @@ export default function AnalyticsPage() {
           />
         )}
       </div>
+
+      {/* Debug Information - Remove in production */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="text-yellow-600">
+              <Activity size={16} />
+            </div>
+            <h3 className="text-sm font-medium text-yellow-900">Debug Info</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div>
+              <span className="font-medium">Series Count:</span>{" "}
+              {series?.length || 0}
+            </div>
+            <div>
+              <span className="font-medium">Has Trend Data:</span>{" "}
+              {series?.some((s) => s.trend && s.trend.length > 0)
+                ? "Yes"
+                : "No"}
+            </div>
+            <div>
+              <span className="font-medium">Combined Data:</span>{" "}
+              {combinedData?.length || 0}
+            </div>
+            <div>
+              <span className="font-medium">Property Filter:</span>{" "}
+              {propertyId || "None"}
+            </div>
+            <div>
+              <span className="font-medium">Provider Filter:</span>{" "}
+              {providerId || "None"}
+            </div>
+            <div>
+              <span className="font-medium">Granularity:</span> {granularity}
+            </div>
+          </div>
+          {series && series.length > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm font-medium text-yellow-800">
+                Series Data Structure
+              </summary>
+              <pre className="mt-2 text-xs text-yellow-700 bg-yellow-100 p-2 rounded overflow-auto max-h-40">
+                {JSON.stringify(series.slice(0, 2), null, 2)}
+              </pre>
+            </details>
+          )}
+        </div>
+      )}
 
       {/* Additional Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
