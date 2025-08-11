@@ -1,0 +1,135 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             (request.auth.token.role == 'admin' || 
+              request.auth.token.isAdmin == true);
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidProviderData(data) {
+      return data.keys().hasAll(['name', 'email', 'service', 'status', 'rating']) &&
+             data.name is string && data.name.size() > 0 &&
+             data.email is string && data.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$') &&
+             data.service is string && data.service.size() > 0 &&
+             data.status in ['active', 'inactive', 'pending', 'suspended'] &&
+             data.rating is number && data.rating >= 0 && data.rating <= 5;
+    }
+    
+    function isValidUpdateData(data) {
+      // For updates, only validate fields that are present
+      let valid = true;
+      
+      if (data.keys().hasAny(['name'])) {
+        valid = valid && data.name is string && data.name.size() > 0;
+      }
+      
+      if (data.keys().hasAny(['email'])) {
+        valid = valid && data.email is string && data.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+      }
+      
+      if (data.keys().hasAny(['status'])) {
+        valid = valid && data.status in ['active', 'inactive', 'pending', 'suspended'];
+      }
+      
+      if (data.keys().hasAny(['rating'])) {
+        valid = valid && data.rating is number && data.rating >= 0 && data.rating <= 5;
+      }
+      
+      return valid;
+    }
+
+    // Service Providers Collection
+    match /serviceProviders/{providerId} {
+      // Read: All authenticated users can read
+      allow read: if isAuthenticated();
+      
+      // Create: Only admins can create
+      allow create: if isAdmin() && 
+                   isValidProviderData(resource.data) &&
+                   resource.data.createdBy == request.auth.uid &&
+                   resource.data.createdAt == request.time &&
+                   resource.data.updatedAt == request.time &&
+                   resource.data.lastActive == request.time;
+      
+      // Update: Only admins can update
+      allow update: if isAdmin() && 
+                   isValidUpdateData(request.resource.data) &&
+                   request.resource.data.updatedBy == request.auth.uid &&
+                   request.resource.data.updatedAt == request.time &&
+                   // Ensure immutable fields are not changed
+                   resource.data.createdBy == request.resource.data.createdBy &&
+                   resource.data.createdAt == request.resource.data.createdAt;
+      
+      // Delete: Only admins can delete (soft delete via status update)
+      allow delete: if false; // Disable hard delete for security
+    }
+
+    // Properties Collection
+    match /properties/{propertyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Financial Data Collection
+    match /financialData/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // User Profiles Collection
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Audit Logs Collection
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated(); // System can create logs
+      allow update, delete: if false; // Immutable logs
+    }
+
+    // API Keys Collection (for service provider integrations)
+    match /apiKeys/{keyId} {
+      allow read: if isAuthenticated() && 
+                   (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && 
+                   resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && 
+                   resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && 
+                   resource.data.userId == request.auth.uid;
+    }
+
+    // Service Requests Collection
+    match /serviceRequests/{requestId} {
+      allow read: if isAuthenticated() && 
+                   (resource.data.propertyId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.propertyIds ||
+                    resource.data.providerId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.providerIds ||
+                    isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && 
+                   (resource.data.propertyId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.propertyIds ||
+                    resource.data.providerId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.providerIds ||
+                    isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

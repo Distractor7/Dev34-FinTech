@@ -1,368 +1,958 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Plus, Search, Edit, Trash2, Users, X } from "lucide-react";
-import { Provider, Property } from "@/types/float34";
-import { getApi } from "@/lib/api";
+import {
+  Plus,
+  Search,
+  Filter,
+  Edit,
+  Trash2,
+  Eye,
+  MoreHorizontal,
+  Building,
+  Activity,
+  Star,
+  Clock,
+  MapPin,
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  PlusCircle,
+  Download,
+  Upload,
+} from "lucide-react";
+import {
+  Provider,
+  ServiceProviderCreateRequest,
+  ServiceProviderUpdateRequest,
+} from "@/types/float34";
+import ServiceProviderService from "@/services/serviceProviderService";
+import { auth } from "@/services/firebaseConfig";
 
-// Debounce hook
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+// Service Provider Form Component
+function ServiceProviderForm({
+  provider,
+  isOpen,
+  onClose,
+  onSubmit,
+  mode = "create",
+}: {
+  provider?: Provider;
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (
+    data: ServiceProviderCreateRequest | ServiceProviderUpdateRequest
+  ) => void;
+  mode?: "create" | "edit";
+}) {
+  const [formData, setFormData] = useState<Partial<Provider>>({
+    name: "",
+    email: "",
+    phone: "",
+    service: "",
+    status: "pending",
+    rating: 0,
+    propertyIds: [],
+    businessName: "",
+    taxId: "",
+    businessAddress: {
+      street: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      country: "",
+    },
+    serviceCategories: [],
+    serviceAreas: [],
+    availability: {
+      monday: { start: "09:00", end: "17:00", available: true },
+      tuesday: { start: "09:00", end: "17:00", available: true },
+      wednesday: { start: "09:00", end: "17:00", available: true },
+      thursday: { start: "09:00", end: "17:00", available: true },
+      friday: { start: "09:00", end: "17:00", available: true },
+      saturday: { start: "09:00", end: "17:00", available: false },
+      sunday: { start: "09:00", end: "17:00", available: false },
+    },
+    complianceStatus: {
+      backgroundCheck: false,
+      drugTest: false,
+      safetyTraining: false,
+      lastUpdated: new Date().toISOString(),
+    },
+    tags: [],
+    notes: "",
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
+    if (provider && mode === "edit") {
+      setFormData(provider);
+    }
+  }, [provider, mode]);
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
+  const handleInputChange = (field: string, value: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
 
-  return debouncedValue;
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.name?.trim()) newErrors.name = "Name is required";
+    if (!formData.email?.trim()) newErrors.email = "Email is required";
+    if (!formData.service?.trim()) newErrors.service = "Service is required";
+    if (!formData.phone?.trim()) newErrors.phone = "Phone is required";
+
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Invalid email format";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onSubmit(
+        formData as ServiceProviderCreateRequest | ServiceProviderUpdateRequest
+      );
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">
+            {mode === "create"
+              ? "Add New Service Provider"
+              : "Edit Service Provider"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <XCircle size={24} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Name *
+              </label>
+              <input
+                type="text"
+                value={formData.name || ""}
+                onChange={(e) => handleInputChange("name", e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.name ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="Provider name"
+              />
+              {errors.name && (
+                <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email *
+              </label>
+              <input
+                type="email"
+                value={formData.email || ""}
+                onChange={(e) => handleInputChange("email", e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.email ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="provider@example.com"
+              />
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone *
+              </label>
+              <input
+                type="tel"
+                value={formData.phone || ""}
+                onChange={(e) => handleInputChange("phone", e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.phone ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="+1 (555) 123-4567"
+              />
+              {errors.phone && (
+                <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Service *
+              </label>
+              <input
+                type="text"
+                value={formData.service || ""}
+                onChange={(e) => handleInputChange("service", e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.service ? "border-red-500" : "border-gray-300"
+                }`}
+                placeholder="e.g., Cleaning, Maintenance, Security"
+              />
+              {errors.service && (
+                <p className="text-red-500 text-sm mt-1">{errors.service}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                value={formData.status || "pending"}
+                onChange={(e) => handleInputChange("status", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="pending">Pending</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="suspended">Suspended</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Rating
+              </label>
+              <div className="flex items-center space-x-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => handleInputChange("rating", star)}
+                    className={`text-2xl ${
+                      star <= (formData.rating || 0)
+                        ? "text-yellow-400"
+                        : "text-gray-300"
+                    }`}
+                  >
+                    ★
+                  </button>
+                ))}
+                <span className="text-sm text-gray-500 ml-2">
+                  {formData.rating || 0}/5
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Business Information */}
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-semibold mb-4">Business Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Business Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.businessName || ""}
+                  onChange={(e) =>
+                    handleInputChange("businessName", e.target.value)
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Business name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tax ID
+                </label>
+                <input
+                  type="text"
+                  value={formData.taxId || ""}
+                  onChange={(e) => handleInputChange("taxId", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Tax identification number"
+                />
+              </div>
+            </div>
+
+            {/* Business Address */}
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Business Address
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input
+                  type="text"
+                  value={formData.businessAddress?.street || ""}
+                  onChange={(e) =>
+                    handleInputChange("businessAddress", {
+                      ...formData.businessAddress,
+                      street: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Street address"
+                />
+                <input
+                  type="text"
+                  value={formData.businessAddress?.city || ""}
+                  onChange={(e) =>
+                    handleInputChange("businessAddress", {
+                      ...formData.businessAddress,
+                      city: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="City"
+                />
+                <input
+                  type="text"
+                  value={formData.businessAddress?.state || ""}
+                  onChange={(e) =>
+                    handleInputChange("businessAddress", {
+                      ...formData.businessAddress,
+                      state: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="State"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Service Categories and Areas */}
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-semibold mb-4">Service Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Service Categories
+                </label>
+                <input
+                  type="text"
+                  value={formData.serviceCategories?.join(", ") || ""}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "serviceCategories",
+                      e.target.value.split(", ").filter(Boolean)
+                    )
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Category 1, Category 2, Category 3"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Separate categories with commas
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Service Areas
+                </label>
+                <input
+                  type="text"
+                  value={formData.serviceAreas?.join(", ") || ""}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "serviceAreas",
+                      e.target.value.split(", ").filter(Boolean)
+                    )
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Area 1, Area 2, Area 3"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Separate areas with commas
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Compliance Status */}
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-semibold mb-4">Compliance Status</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.complianceStatus?.backgroundCheck || false}
+                  onChange={(e) =>
+                    handleInputChange("complianceStatus", {
+                      ...formData.complianceStatus,
+                      backgroundCheck: e.target.checked,
+                    })
+                  }
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Background Check</span>
+              </label>
+
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.complianceStatus?.drugTest || false}
+                  onChange={(e) =>
+                    handleInputChange("complianceStatus", {
+                      ...formData.complianceStatus,
+                      drugTest: e.target.checked,
+                    })
+                  }
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Drug Test</span>
+              </label>
+
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={formData.complianceStatus?.safetyTraining || false}
+                  onChange={(e) =>
+                    handleInputChange("complianceStatus", {
+                      ...formData.complianceStatus,
+                      safetyTraining: e.target.checked,
+                    })
+                  }
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Safety Training</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="border-t pt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Notes
+            </label>
+            <textarea
+              value={formData.notes || ""}
+              onChange={(e) => handleInputChange("notes", e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Additional notes about this service provider..."
+            />
+          </div>
+
+          {/* Form Actions */}
+          <div className="border-t pt-6 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+            >
+              {mode === "create" ? "Create Provider" : "Update Provider"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
-export default function ServiceProvidersPage() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-
-  // URL state
-  const searchTerm = searchParams.get("q") || "";
-  const propertyId = searchParams.get("propertyId") || "";
-
-  // Debounced search for API calls
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
-
-  // Get selected property name for display
-  const selectedProperty = properties.find((p) => p.id === propertyId);
-
-  // Fetch data
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const api = getApi();
-      const [providersData, propertiesData] = await Promise.all([
-        api.listProviders({
-          q: debouncedSearchTerm,
-          propertyId: propertyId || undefined,
-        }),
-        api.listProperties(),
-      ]);
-      setProviders(providersData);
-      setProperties(propertiesData);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearchTerm, propertyId]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Update URL params
-  const updateSearchParams = useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams);
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === null || value === "") {
-          params.delete(key);
-        } else {
-          params.set(key, value);
-        }
-      });
-      router.push(`${pathname}?${params.toString()}`);
-    },
-    [searchParams, router, pathname]
-  );
-
-  const handleSearchChange = (value: string) => {
-    updateSearchParams({ q: value || null });
-  };
-
-  const handlePropertyChange = (value: string) => {
-    updateSearchParams({ propertyId: value || null });
-  };
-
-  const clearAllFilters = () => {
-    updateSearchParams({ q: null, propertyId: null });
-  };
-
+// Service Provider Card Component
+function ServiceProviderCard({
+  provider,
+  onEdit,
+  onDelete,
+  onView,
+}: {
+  provider: Provider;
+  onEdit: (provider: Provider) => void;
+  onDelete: (provider: Provider) => void;
+  onView: (provider: Provider) => void;
+}) {
   const getStatusColor = (status: string) => {
-    return status === "active"
-      ? "bg-green-100 text-green-800"
-      : "bg-red-100 text-red-800";
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800";
+      case "inactive":
+        return "bg-gray-100 text-gray-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "suspended":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "active":
+        return <CheckCircle size={16} />;
+      case "inactive":
+        return <XCircle size={16} />;
+      case "pending":
+        return <Clock size={16} />;
+      case "suspended":
+        return <AlertTriangle size={16} />;
+      default:
+        return <XCircle size={16} />;
+    }
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Service Providers
-          </h1>
-          <p className="text-gray-600">
-            Manage your service providers and partnerships
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus size={20} />
-          Add Provider
-        </button>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="mb-6">
-        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-          <div className="flex-1">
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
-              />
-              <input
-                type="text"
-                placeholder="Search providers..."
-                value={searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+    <div className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-lg font-semibold text-gray-900">
+              {provider.name}
+            </h3>
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                provider.status
+              )}`}
+            >
+              {getStatusIcon(provider.status)}
+              {provider.status}
+            </span>
           </div>
 
-          <select
-            value={propertyId}
-            onChange={(e) => handlePropertyChange(e.target.value)}
-            className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">All properties</option>
-            {properties.map((property) => (
-              <option key={property.id} value={property.id}>
-                {property.name}
-              </option>
-            ))}
-          </select>
-
-          {(searchTerm || propertyId) && (
-            <button
-              onClick={clearAllFilters}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <X size={16} />
-              Clear
-            </button>
+          <p className="text-gray-600 mb-1">{provider.service}</p>
+          {provider.businessName && (
+            <p className="text-sm text-gray-500">{provider.businessName}</p>
           )}
         </div>
 
-        {/* Active Filters Display */}
-        {(searchTerm || propertyId) && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {searchTerm && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                Search: "{searchTerm}"
-                <button
-                  onClick={() => handleSearchChange("")}
-                  className="ml-1 hover:text-blue-600"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            )}
-            {propertyId && selectedProperty && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                Property: {selectedProperty.name}
-                <button
-                  onClick={() => handlePropertyChange("")}
-                  className="ml-1 hover:text-green-600"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            )}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                size={16}
+                className={`${
+                  star <= provider.rating
+                    ? "text-yellow-400 fill-current"
+                    : "text-gray-300"
+                }`}
+              />
+            ))}
+            <span className="text-sm text-gray-500 ml-1">
+              ({provider.rating})
+            </span>
           </div>
-        )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+        <div className="flex items-center gap-2 text-gray-600">
+          <Activity size={16} />
+          <span>{provider.serviceCategories?.length || 0} categories</span>
+        </div>
+        <div className="flex items-center gap-2 text-gray-600">
+          <MapPin size={16} />
+          <span>{provider.serviceAreas?.length || 0} areas</span>
+        </div>
+        <div className="flex items-center gap-2 text-gray-600">
+          <Building size={16} />
+          <span>{provider.propertyIds?.length || 0} properties</span>
+        </div>
+        <div className="flex items-center gap-2 text-gray-600">
+          <Shield size={16} />
+          <span>
+            {
+              Object.values(provider.complianceStatus || {}).filter(Boolean)
+                .length
+            }
+            /3 compliant
+          </span>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-gray-500">
+          Last active: {new Date(provider.lastActive).toLocaleDateString()}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onView(provider)}
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            title="View details"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            onClick={() => onEdit(provider)}
+            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+            title="Edit provider"
+          >
+            <Edit size={16} />
+          </button>
+          <button
+            onClick={() => onDelete(provider)}
+            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="Delete provider"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main Service Providers Page
+export default function ServiceProvidersPage() {
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [showForm, setShowForm] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<
+    Provider | undefined
+  >();
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    pending: 0,
+    suspended: 0,
+  });
+
+  // Load providers
+  const loadProviders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await ServiceProviderService.getProviders({
+        status: statusFilter || undefined,
+      });
+      setProviders(result.providers);
+
+      // Load stats
+      const providerStats = await ServiceProviderService.getProviderStats();
+      setStats(providerStats);
+    } catch (error) {
+      console.error("Error loading providers:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    loadProviders();
+  }, [loadProviders]);
+
+  // Search providers
+  const filteredProviders = providers.filter(
+    (provider) =>
+      provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      provider.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      provider.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      provider.businessName?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Handle form submission
+  const handleFormSubmit = async (
+    data: ServiceProviderCreateRequest | ServiceProviderUpdateRequest
+  ) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        alert("You must be logged in to perform this action");
+        return;
+      }
+
+      if (formMode === "create") {
+        const result = await ServiceProviderService.createProvider(
+          data as ServiceProviderCreateRequest,
+          user.uid
+        );
+        if (result.success) {
+          alert("Service provider created successfully!");
+          setShowForm(false);
+          loadProviders();
+        } else {
+          alert(`Error: ${result.error}`);
+        }
+      } else {
+        const result = await ServiceProviderService.updateProvider(
+          editingProvider!.id,
+          data as ServiceProviderUpdateRequest,
+          user.uid
+        );
+        if (result.success) {
+          alert("Service provider updated successfully!");
+          setShowForm(false);
+          setEditingProvider(undefined);
+          loadProviders();
+        } else {
+          alert(`Error: ${result.error}`);
+        }
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      alert("An error occurred while saving the provider");
+    }
+  };
+
+  // Handle provider deletion
+  const handleDeleteProvider = async (provider: Provider) => {
+    if (!confirm(`Are you sure you want to delete ${provider.name}?`)) {
+      return;
+    }
+
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        alert("You must be logged in to perform this action");
+        return;
+      }
+
+      const result = await ServiceProviderService.deleteProvider(
+        provider.id,
+        user.uid
+      );
+      if (result.success) {
+        alert("Service provider deleted successfully!");
+        loadProviders();
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error deleting provider:", error);
+      alert("An error occurred while deleting the provider");
+    }
+  };
+
+  // Handle edit provider
+  const handleEditProvider = (provider: Provider) => {
+    setEditingProvider(provider);
+    setFormMode("edit");
+    setShowForm(true);
+  };
+
+  // Handle view provider
+  const handleViewProvider = (provider: Provider) => {
+    // TODO: Implement detailed view modal
+    alert(`Viewing details for ${provider.name}`);
+  };
+
+  // Handle create new provider
+  const handleCreateProvider = () => {
+    setEditingProvider(undefined);
+    setFormMode("create");
+    setShowForm(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-48 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          Service Providers
+        </h1>
+        <p className="text-gray-600">
+          Manage your service providers, view performance metrics, and handle
+          compliance requirements.
+        </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+            </div>
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="text-blue-600" size={24} />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">
-                Total Providers
-              </p>
-              <p className="text-2xl font-bold text-gray-900">
-                {providers.length}
-              </p>
+              <Activity className="text-blue-600" size={20} />
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
+
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Active</p>
+              <p className="text-2xl font-bold text-green-600">
+                {stats.active}
+              </p>
+            </div>
             <div className="p-2 bg-green-100 rounded-lg">
-              <Users className="text-green-600" size={24} />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">
-                Active Providers
-              </p>
-              <p className="text-2xl font-bold text-gray-900">
-                {providers.filter((p) => p.status === "active").length}
-              </p>
+              <CheckCircle className="text-green-600" size={20} />
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center">
+
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Pending</p>
+              <p className="text-2xl font-bold text-yellow-600">
+                {stats.pending}
+              </p>
+            </div>
             <div className="p-2 bg-yellow-100 rounded-lg">
-              <Users className="text-yellow-600" size={24} />
+              <Clock className="text-yellow-600" size={20} />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Avg. Rating</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {(
-                  providers.reduce((acc, p) => acc + p.rating, 0) /
-                  providers.length
-                ).toFixed(1)}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Inactive</p>
+              <p className="text-2xl font-bold text-gray-600">
+                {stats.inactive}
               </p>
+            </div>
+            <div className="p-2 bg-gray-100 rounded-lg">
+              <XCircle className="text-gray-600" size={20} />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Suspended</p>
+              <p className="text-2xl font-bold text-red-600">
+                {stats.suspended}
+              </p>
+            </div>
+            <div className="p-2 bg-red-100 rounded-lg">
+              <AlertTriangle className="text-red-600" size={20} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Providers Table */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Provider
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Service
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rating
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                      <span className="ml-2 text-gray-500">
-                        Loading providers...
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              ) : providers.length > 0 ? (
-                providers.map((provider) => (
-                  <tr key={provider.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {provider.name}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {provider.service}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {provider.email}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {provider.phone}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                          provider.status
-                        )}`}
-                      >
-                        {provider.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <span className="text-sm text-gray-900">
-                          {provider.rating}
-                        </span>
-                        <span className="text-yellow-400 ml-1">★</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center gap-2">
-                        <button className="text-blue-600 hover:text-blue-900">
-                          <Edit size={16} />
-                        </button>
-                        <button className="text-red-600 hover:text-red-900">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : null}
-            </tbody>
-          </table>
+      {/* Controls */}
+      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center mb-6">
+        <div className="flex-1 min-w-0">
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={20}
+            />
+            <input
+              type="text"
+              placeholder="Search service providers..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="pending">Pending</option>
+            <option value="suspended">Suspended</option>
+          </select>
+
+          <button
+            onClick={handleCreateProvider}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+          >
+            <Plus size={16} />
+            Add Provider
+          </button>
         </div>
       </div>
 
-      {!loading && providers.length === 0 && (
+      {/* Providers Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredProviders.map((provider) => (
+          <ServiceProviderCard
+            key={provider.id}
+            provider={provider}
+            onEdit={handleEditProvider}
+            onDelete={handleDeleteProvider}
+            onView={handleViewProvider}
+          />
+        ))}
+      </div>
+
+      {filteredProviders.length === 0 && (
         <div className="text-center py-12">
-          <Users className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">
-            {propertyId && selectedProperty
-              ? `No providers found for ${selectedProperty.name}`
-              : "No providers found"}
+          <Activity className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No service providers found
           </h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {searchTerm || propertyId
-              ? "Try clearing some filters or adjusting your search terms."
-              : "Get started by adding a new service provider."}
+          <p className="text-gray-600">
+            {searchQuery || statusFilter
+              ? "Try adjusting your search or filter criteria."
+              : "Get started by adding your first service provider."}
           </p>
-          {(searchTerm || propertyId) && (
+          {!searchQuery && !statusFilter && (
             <button
-              onClick={clearAllFilters}
-              className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={handleCreateProvider}
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Clear All Filters
+              <Plus size={16} />
+              Add Service Provider
             </button>
           )}
         </div>
       )}
+
+      {/* Service Provider Form Modal */}
+      <ServiceProviderForm
+        provider={editingProvider}
+        isOpen={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setEditingProvider(undefined);
+        }}
+        onSubmit={handleFormSubmit}
+        mode={formMode}
+      />
     </div>
   );
 }
