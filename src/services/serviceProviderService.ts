@@ -31,6 +31,20 @@ export class ServiceProviderService {
   private static readonly BATCH_SIZE = 20;
 
   /**
+   * Check if Firebase is available and connected
+   */
+  private static async checkFirebaseConnection(): Promise<boolean> {
+    try {
+      // Try to access Firestore to check connection
+      await getDocs(collection(db, '_health'));
+      return true;
+    } catch (error) {
+      console.warn("⚠️ Firebase connection check failed:", error);
+      return false;
+    }
+  }
+
+  /**
    * Create a new service provider with security validation and encryption
    */
   static async createProvider(
@@ -38,6 +52,15 @@ export class ServiceProviderService {
     userId: string
   ): Promise<{ success: boolean; providerId?: string; error?: string }> {
     try {
+      // Check Firebase connection first
+      const isConnected = await this.checkFirebaseConnection();
+      if (!isConnected) {
+        return { 
+          success: false, 
+          error: "Firebase connection unavailable. Please check your internet connection and try again." 
+        };
+      }
+
       // Validate user permissions
       const hasPermission = await SecurityUtils.validateProviderAccess(
         "",
@@ -106,7 +129,19 @@ export class ServiceProviderService {
       return { success: true, providerId: docRef.id };
     } catch (error) {
       console.error("Error creating service provider:", error);
-      return { success: false, error: "Failed to create service provider" };
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('permission-denied')) {
+          return { success: false, error: "Permission denied. Please check your authentication status." };
+        } else if (error.message.includes('unavailable')) {
+          return { success: false, error: "Firebase service unavailable. Please try again later." };
+        } else if (error.message.includes('network')) {
+          return { success: false, error: "Network error. Please check your internet connection." };
+        }
+      }
+      
+      return { success: false, error: "Failed to create service provider. Please try again." };
     }
   }
 
@@ -115,6 +150,13 @@ export class ServiceProviderService {
    */
   static async getProviderById(providerId: string): Promise<Provider | null> {
     try {
+      // Check Firebase connection first
+      const isConnected = await this.checkFirebaseConnection();
+      if (!isConnected) {
+        console.warn("Firebase connection unavailable, cannot fetch provider");
+        return null;
+      }
+
       const docRef = doc(db, this.COLLECTION_NAME, providerId);
       const docSnap = await getDoc(docRef);
 
@@ -149,6 +191,13 @@ export class ServiceProviderService {
     hasMore: boolean;
   }> {
     try {
+      // Check Firebase connection first
+      const isConnected = await this.checkFirebaseConnection();
+      if (!isConnected) {
+        console.warn("Firebase connection unavailable, returning empty results");
+        return { providers: [], hasMore: false };
+      }
+
       let q = collection(db, this.COLLECTION_NAME);
 
       // Build query based on search parameters

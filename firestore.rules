@@ -53,8 +53,10 @@ service cloud.firestore {
       // Read: All authenticated users can read
       allow read: if isAuthenticated();
       
-      // Create: Only admins can create
-      allow create: if isAdmin() && 
+      // Create: Allow admins OR users creating their own provider profile during signup
+      allow create: if (isAdmin() || 
+                       (isAuthenticated() && 
+                        resource.data.createdBy == request.auth.uid)) && 
                    isValidProviderData(resource.data) &&
                    resource.data.createdBy == request.auth.uid &&
                    resource.data.createdAt == request.time &&
@@ -89,7 +91,11 @@ service cloud.firestore {
     // User Profiles Collection
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
+      // Allow users to create their own profile during signup
+      allow create: if isOwner(userId) || 
+                   (isAuthenticated() && 
+                    request.auth.uid == userId && 
+                    request.resource.data.uid == userId);
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }

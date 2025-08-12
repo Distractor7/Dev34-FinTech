@@ -3,15 +3,17 @@ import { getAuth, connectAuthEmulator } from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
+import { getAnalytics, isSupported } from "firebase/analytics";
 
-// Firebase configuration
+// Firebase configuration for Flow34 project
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDQ-wTvan99kZal7EWXcve2RAQy966M0yk",
+  authDomain: "flow34-bad8e.firebaseapp.com",
+  projectId: "flow34-bad8e",
+  storageBucket: "flow34-bad8e.firebasestorage.app",
+  messagingSenderId: "256044292068",
+  appId: "1:256044292068:web:5cd9a6ed0b207796fed9f1",
+  measurementId: "G-CCJGHX5EQ4",
 };
 
 // Validate Firebase configuration
@@ -33,10 +35,6 @@ const validateFirebaseConfig = () => {
       "❌ Firebase configuration is missing required fields:",
       missingFields
     );
-    console.error(
-      "Please check your .env.local file and ensure all Firebase configuration values are set."
-    );
-    console.error("Current config:", firebaseConfig);
     throw new Error(
       `Firebase configuration incomplete. Missing: ${missingFields.join(", ")}`
     );
@@ -50,25 +48,10 @@ let app;
 try {
   validateFirebaseConfig();
   app = initializeApp(firebaseConfig);
-  console.log("🚀 Firebase initialized successfully");
+  console.log("🚀 Firebase initialized successfully for Flow34 project");
 } catch (error) {
   console.error("❌ Failed to initialize Firebase:", error);
-
-  // Fallback for development - you can remove this in production
-  if (process.env.NODE_ENV === "development") {
-    console.warn("⚠️ Using fallback Firebase config for development");
-    const fallbackConfig = {
-      apiKey: "demo-api-key",
-      authDomain: "demo-project.firebaseapp.com",
-      projectId: "demo-project",
-      storageBucket: "demo-project.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "demo-app-id",
-    };
-    app = initializeApp(fallbackConfig, "fallback");
-  } else {
-    throw error;
-  }
+  throw error;
 }
 
 // Initialize Firebase services
@@ -77,26 +60,47 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
 
-// Connect to emulators in development
-if (process.env.NODE_ENV === "development") {
-  try {
-    // Only connect to emulators if Firebase is properly configured
-    if (
-      process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
-      process.env.NEXT_PUBLIC_FIREBASE_API_KEY !== "your_actual_api_key_here"
-    ) {
-      connectAuthEmulator(auth, "http://localhost:9099");
-      connectFirestoreEmulator(db, "localhost", 8080);
-      connectStorageEmulator(storage, "localhost", 9199);
-      connectFunctionsEmulator(functions, "localhost", 5001);
-      console.log("🔌 Connected to Firebase emulators");
-    } else {
-      console.log("⚠️ Skipping emulator connection - using fallback config");
-    }
-  } catch (error) {
-    console.log("Emulators already connected or not available");
-  }
-}
+// Initialize Analytics only on client side and when supported
+export const analytics =
+  typeof window !== "undefined"
+    ? (async () => {
+        try {
+          const analyticsSupported = await isSupported();
+          if (analyticsSupported) {
+            return getAnalytics(app);
+          } else {
+            console.log("📊 Analytics not supported in this environment");
+            return null;
+          }
+        } catch (error) {
+          console.warn("⚠️ Failed to initialize Analytics:", error);
+          return null;
+        }
+      })()
+    : null;
+
+// Connect to emulators in development (DISABLED - using production Firebase)
+// if (process.env.NODE_ENV === "development") {
+//   try {
+//     // Only connect to emulators if Firebase is properly configured
+//     if (
+//       firebaseConfig.apiKey &&
+//       firebaseConfig.apiKey !== "your_actual_api_key_here"
+//     ) {
+//       connectAuthEmulator(auth, "http://localhost:9099");
+//       connectFirestoreEmulator(db, "localhost", 8080);
+//       connectStorageEmulator(storage, "localhost", 9199);
+//       connectFunctionsEmulator(functions, "localhost", 5001);
+//       console.log("🔌 Connected to Firebase emulators");
+//     } else {
+//       console.log("⚠️ Skipping emulator connection - using fallback config");
+//     }
+//   } catch (error) {
+//     console.log("Emulators already connected or not available");
+//   }
+// }
+
+console.log("🌐 Using production Firebase services (emulators disabled)");
 
 // Encryption utilities for sensitive data
 export class DataEncryption {
@@ -209,12 +213,15 @@ export class SecurityUtils {
     operation: "read" | "write" | "delete"
   ): Promise<boolean> {
     try {
-      // In production, implement proper role-based access control
-      // For now, allow all authenticated users to read, only admins to write/delete
       const user = auth.currentUser;
       if (!user) return false;
 
-      // Check if user has admin role (implement proper role checking)
+      // For new user signup, allow them to create their own profile
+      if (operation === "write" && !providerId) {
+        return true; // Allow new users to create profiles during signup
+      }
+
+      // Check if user has admin role
       const token = await user.getIdTokenResult();
       const isAdmin =
         token.claims?.role === "admin" || token.claims?.isAdmin === true;
