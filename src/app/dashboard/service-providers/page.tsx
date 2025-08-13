@@ -133,8 +133,8 @@ function ServiceProviderForm({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">
             {mode === "create"
@@ -355,7 +355,11 @@ function ServiceProviderForm({
                 </label>
                 <input
                   type="text"
-                  value={formData.serviceCategories?.join(", ") || ""}
+                  value={
+                    Array.isArray(formData.serviceCategories)
+                      ? formData.serviceCategories.join(", ")
+                      : ""
+                  }
                   onChange={(e) =>
                     handleInputChange(
                       "serviceCategories",
@@ -376,7 +380,11 @@ function ServiceProviderForm({
                 </label>
                 <input
                   type="text"
-                  value={formData.serviceAreas?.join(", ") || ""}
+                  value={
+                    Array.isArray(formData.serviceAreas)
+                      ? formData.serviceAreas.join(", ")
+                      : ""
+                  }
                   onChange={(e) =>
                     handleInputChange(
                       "serviceAreas",
@@ -629,13 +637,17 @@ export default function ServiceProvidersPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "pending" | "suspended" | "">("");
+  const [statusFilter, setStatusFilter] = useState<
+    "active" | "inactive" | "pending" | "suspended" | ""
+  >("");
   const [showForm, setShowForm] = useState(false);
   const [editingProvider, setEditingProvider] = useState<
     Provider | undefined
   >();
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
+  const [connectionStatus, setConnectionStatus] = useState<
+    "connected" | "disconnected" | "checking"
+  >("checking");
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -646,15 +658,19 @@ export default function ServiceProvidersPage() {
 
   // Check Firebase connection status
   const checkConnection = useCallback(async () => {
-    setConnectionStatus('checking');
+    setConnectionStatus("checking");
     try {
       // Try to fetch a small amount of data to test connection
-      const result = await ServiceProviderService.getProviders({}, undefined, 1);
-      setConnectionStatus('connected');
+      const result = await ServiceProviderService.getProviders(
+        {},
+        undefined,
+        1
+      );
+      setConnectionStatus("connected");
       return true;
     } catch (error) {
-      console.warn('Firebase connection check failed:', error);
-      setConnectionStatus('disconnected');
+      console.warn("Firebase connection check failed:", error);
+      setConnectionStatus("disconnected");
       return false;
     }
   }, []);
@@ -665,9 +681,15 @@ export default function ServiceProvidersPage() {
     try {
       const isConnected = await checkConnection();
       if (!isConnected) {
-        console.warn('Firebase not connected, skipping data load');
+        console.warn("Firebase not connected, skipping data load");
         setProviders([]);
-        setStats({ total: 0, active: 0, inactive: 0, pending: 0, suspended: 0 });
+        setStats({
+          total: 0,
+          active: 0,
+          inactive: 0,
+          pending: 0,
+          suspended: 0,
+        });
         return;
       }
 
@@ -675,7 +697,7 @@ export default function ServiceProvidersPage() {
         status: statusFilter || undefined,
       });
       setProviders(result.providers);
-      
+
       // Load stats
       const providerStats = await ServiceProviderService.getProviderStats();
       setStats(providerStats);
@@ -797,7 +819,7 @@ export default function ServiceProvidersPage() {
   // Retry connection
   const handleRetryConnection = () => {
     checkConnection().then(() => {
-      if (connectionStatus === 'connected') {
+      if (connectionStatus === "connected") {
         loadProviders();
       }
     });
@@ -821,7 +843,7 @@ export default function ServiceProvidersPage() {
   return (
     <div className="p-6">
       {/* Connection Status Banner */}
-      {connectionStatus === 'disconnected' && (
+      {connectionStatus === "disconnected" && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
           <div className="flex items-center gap-3">
             <WifiOff className="text-red-500" size={20} />
@@ -830,7 +852,8 @@ export default function ServiceProvidersPage() {
                 Firebase Connection Lost
               </h3>
               <p className="text-sm text-red-600">
-                Unable to connect to Firebase. Please check your internet connection and try again.
+                Unable to connect to Firebase. Please check your internet
+                connection and try again.
               </p>
             </div>
             <button
@@ -849,7 +872,7 @@ export default function ServiceProvidersPage() {
           <h1 className="text-2xl font-bold text-gray-900">
             Service Providers
           </h1>
-          {connectionStatus === 'connected' && (
+          {connectionStatus === "connected" && (
             <div className="flex items-center gap-1 text-green-600">
               <Wifi size={16} />
               <span className="text-sm">Connected</span>
@@ -948,13 +971,22 @@ export default function ServiceProvidersPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-                        </div>
-                      </div>
+          </div>
+        </div>
 
         <div className="flex items-center gap-3">
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as "active" | "inactive" | "pending" | "suspended" | "")}
+            onChange={(e) =>
+              setStatusFilter(
+                e.target.value as
+                  | "active"
+                  | "inactive"
+                  | "pending"
+                  | "suspended"
+                  | ""
+              )
+            }
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Statuses</option>
@@ -966,17 +998,17 @@ export default function ServiceProvidersPage() {
 
           <button
             onClick={handleCreateProvider}
-            disabled={connectionStatus !== 'connected'}
+            disabled={connectionStatus !== "connected"}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus size={16} />
             Add Provider
-                        </button>
+          </button>
         </div>
       </div>
 
       {/* Providers Grid */}
-      {connectionStatus === 'connected' ? (
+      {connectionStatus === "connected" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProviders.map((provider) => (
             <ServiceProviderCard
@@ -995,7 +1027,8 @@ export default function ServiceProvidersPage() {
             Firebase Connection Required
           </h3>
           <p className="text-gray-600 mb-4">
-            Unable to connect to Firebase. Please check your connection and try again.
+            Unable to connect to Firebase. Please check your connection and try
+            again.
           </p>
           <button
             onClick={handleRetryConnection}
@@ -1006,7 +1039,7 @@ export default function ServiceProvidersPage() {
         </div>
       )}
 
-      {connectionStatus === 'connected' && filteredProviders.length === 0 && (
+      {connectionStatus === "connected" && filteredProviders.length === 0 && (
         <div className="text-center py-12">
           <Activity className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -1030,16 +1063,18 @@ export default function ServiceProvidersPage() {
       )}
 
       {/* Service Provider Form Modal */}
-      <ServiceProviderForm
-        provider={editingProvider}
-        isOpen={showForm}
-        onClose={() => {
-          setShowForm(false);
-          setEditingProvider(undefined);
-        }}
-        onSubmit={handleFormSubmit}
-        mode={formMode}
-      />
+      {showForm && (
+        <ServiceProviderForm
+          provider={editingProvider}
+          isOpen={showForm}
+          onClose={() => {
+            setShowForm(false);
+            setEditingProvider(undefined);
+          }}
+          onSubmit={handleFormSubmit}
+          mode={formMode}
+        />
+      )}
     </div>
   );
 }

@@ -214,24 +214,46 @@ export class SecurityUtils {
   ): Promise<boolean> {
     try {
       const user = auth.currentUser;
-      if (!user) return false;
+      if (!user) {
+        console.log("❌ No current user found");
+        return false;
+      }
 
       // For new user signup, allow them to create their own profile
       if (operation === "write" && !providerId) {
+        console.log("✅ New user signup - allowing profile creation");
         return true; // Allow new users to create profiles during signup
       }
 
       // Check if user has admin role
       const token = await user.getIdTokenResult();
+      console.log("🔍 Token claims:", token.claims);
+      console.log("🔍 User ID:", userId);
+      console.log("🔍 Operation:", operation);
+
       const isAdmin =
         token.claims?.role === "admin" || token.claims?.isAdmin === true;
 
-      if (operation === "read") return true; // All authenticated users can read
-      if (operation === "write" || operation === "delete") return isAdmin; // Only admins can write/delete
+      console.log("🔍 Is admin check:", {
+        roleClaim: token.claims?.role,
+        isAdminClaim: token.claims?.isAdmin,
+        finalResult: isAdmin,
+      });
 
+      if (operation === "read") {
+        console.log("✅ Read operation - allowing");
+        return true; // All authenticated users can read
+      }
+
+      if (operation === "write" || operation === "delete") {
+        console.log(`🔒 ${operation} operation - admin required:`, isAdmin);
+        return isAdmin; // Only admins can write/delete
+      }
+
+      console.log("❌ Unknown operation:", operation);
       return false;
     } catch (error) {
-      console.error("Permission validation failed:", error);
+      console.error("❌ Permission validation failed:", error);
       return false;
     }
   }
