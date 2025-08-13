@@ -45,12 +45,49 @@ export default function LoginPage() {
     setSuccess("");
 
     try {
-      await signInWithEmailAndPassword(
+      const userCredential = await signInWithEmailAndPassword(
         auth,
         loginData.email,
         loginData.password
       );
-      router.replace("/dashboard/home"); // ✅ navigate on success
+
+      const user = userCredential.user;
+
+      // Get user profile to check their actual role
+      const userProfile = await UserService.getUserProfile(user.uid);
+
+      if (!userProfile) {
+        setError("User profile not found. Please contact support.");
+        setLoading(false);
+        return;
+      }
+
+      // Check if login type matches user's actual role
+      const expectedRole = loginType === "admin" ? "admin" : "service_provider";
+
+      if (userProfile.role !== expectedRole) {
+        setError(
+          `This account is registered as a ${userProfile.role.replace(
+            "_",
+            " "
+          )}. Please select the correct login type.`
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Update last login time
+      await UserService.updateLastLogin(user.uid);
+
+      setSuccess("Login successful! Redirecting...");
+
+      // Route based on user type
+      if (userProfile.role === "admin") {
+        setTimeout(() => router.push("/dashboard/home"), 1000);
+      } else {
+        // Service providers go to a "Coming Soon" page
+        setTimeout(() => router.push("/dashboard/coming-soon"), 1000);
+      }
     } catch (error: any) {
       console.error("Login error:", error);
       setError(getErrorMessage(error.code));
@@ -180,7 +217,13 @@ export default function LoginPage() {
           providerResult.providerId!
         );
 
-        setSuccess("Account created successfully! You can now log in.");
+        // IMPORTANT: Sign out the user immediately after signup
+        // This prevents auto-login and ensures they select the correct login type
+        await auth.signOut();
+
+        setSuccess(
+          "Account created successfully! You can now log in with the 'SP' login type."
+        );
         setShowSignupModal(false);
         // Reset signup form
         setSignupData({
@@ -348,6 +391,21 @@ export default function LoginPage() {
               />
               SP
             </label>
+          </div>
+
+          {/* Helpful message based on selection */}
+          <div
+            style={{
+              marginTop: "8px",
+              fontSize: "12px",
+              color: "#6b7280",
+              fontStyle: "italic",
+              textAlign: "center",
+            }}
+          >
+            {loginType === "admin"
+              ? "Dev34: For admin users and property managers"
+              : "SP: For service providers and contractors"}
           </div>
         </div>
 
