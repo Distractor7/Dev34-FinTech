@@ -277,80 +277,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#ffffff",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 500,
-          width: "100%",
-          padding: 30,
-          backgroundColor: "white",
-          borderRadius: 12,
-          boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-          margin: "0 20px",
-        }}
-      >
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <div className="max-w-lg w-full bg-white rounded-xl shadow-2xl p-10 mx-4">
         <img
           src="/flow34.png"
           alt="Login Graphic"
-          style={{
-            width: "85%",
-            height: "auto",
-            marginBottom: 8,
-            margin: "0 auto 8px auto",
-            display: "block",
-          }}
+          className="w-4/5 h-auto mx-auto mb-4 block"
         />
-        <h2
-          style={{
-            textAlign: "center",
-            marginBottom: 8,
-            color: "#333",
-            fontSize: "20px",
-            fontFamily: "Arial",
-          }}
-        >
+        <h2 className="text-center mb-4 text-2xl font-semibold text-gray-800">
           Welcome! Please log in
         </h2>
 
         {/* Login Type Selection */}
-        <div style={{ marginBottom: 8 }}>
-          <label
-            style={{
-              display: "block",
-              marginBottom: 4,
-              fontWeight: "bold",
-              color: "#555",
-              fontSize: "13px",
-            }}
-          >
+        <div className="mb-4">
+          <label className="block mb-2 font-semibold text-gray-700 text-base">
             Login Type
           </label>
-          <div style={{ display: "flex", gap: 4 }}>
+          <div className="flex gap-2">
             <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                padding: "5px 10px",
-                borderRadius: 4,
-                border: "1px solid #e1e5e9",
-                backgroundColor: loginType === "admin" ? "#0070f3" : "#f8f9fa",
-                color: loginType === "admin" ? "white" : "#6c757d",
-                fontWeight: loginType === "admin" ? "600" : "500",
-                fontSize: "13px",
-                transition: "all 0.2s ease",
-                flex: 1,
-                textAlign: "center",
-              }}
+              className={`flex items-center justify-center cursor-pointer px-3 py-2 rounded border transition-all duration-200 flex-1 text-center text-sm font-medium ${
+                loginType === "admin"
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-gray-50 text-gray-600 border-gray-300"
+              }`}
             >
               <input
                 type="radio"
@@ -358,28 +307,16 @@ export default function LoginPage() {
                 value="admin"
                 checked={loginType === "admin"}
                 onChange={(e) => setLoginType(e.target.value)}
-                style={{ display: "none" }}
+                className="hidden"
               />
               Dev34
             </label>
             <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                padding: "5px 10px",
-                borderRadius: 4,
-                border: "1px solid #e1e5e9",
-                backgroundColor:
-                  loginType === "service" ? "#0070f3" : "#f8f9fa",
-                color: loginType === "service" ? "white" : "#6c757d",
-                fontWeight: loginType === "service" ? "600" : "500",
-                fontSize: "13px",
-                transition: "all 0.2s ease",
-                flex: 1,
-                textAlign: "center",
-              }}
+              className={`flex items-center justify-center cursor-pointer px-3 py-2 rounded border transition-all duration-200 flex-1 text-center text-sm font-medium ${
+                loginType === "service"
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-gray-50 text-gray-600 border-gray-300"
+              }`}
             >
               <input
                 type="radio"
@@ -387,22 +324,14 @@ export default function LoginPage() {
                 value="service"
                 checked={loginType === "service"}
                 onChange={(e) => setLoginType(e.target.value)}
-                style={{ display: "none" }}
+                className="hidden"
               />
               SP
             </label>
           </div>
 
           {/* Helpful message based on selection */}
-          <div
-            style={{
-              marginTop: "8px",
-              fontSize: "12px",
-              color: "#6b7280",
-              fontStyle: "italic",
-              textAlign: "center",
-            }}
-          >
+          <div className="mt-2 text-sm text-gray-500 italic text-center">
             {loginType === "admin"
               ? "Dev34: For admin users and property managers"
               : "SP: For service providers and contractors"}
@@ -416,14 +345,7 @@ export default function LoginPage() {
           onChange={(e) =>
             setLoginData({ ...loginData, email: e.target.value })
           }
-          style={{
-            width: "100%",
-            padding: 10,
-            borderRadius: 4,
-            border: "1px solid #ccc",
-            marginBottom: 4,
-            fontSize: "14px",
-          }}
+          className="w-full px-4 py-3 rounded border border-gray-300 mb-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <input
           type="password"
@@ -432,44 +354,17 @@ export default function LoginPage() {
           onChange={(e) =>
             setLoginData({ ...loginData, password: e.target.value })
           }
-          style={{
-            width: "100%",
-            padding: 10,
-            borderRadius: 4,
-            border: "1px solid #ccc",
-            marginBottom: 8,
-            fontSize: "14px",
-          }}
+          className="w-full px-4 py-3 rounded border border-gray-300 mb-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         {/* Error/Success Messages */}
         {error && (
-          <div
-            style={{
-              padding: "12px 16px",
-              backgroundColor: "#fef2f2",
-              border: "1px solid #fecaca",
-              borderRadius: "6px",
-              color: "#dc2626",
-              fontSize: "14px",
-              marginBottom: "16px",
-            }}
-          >
+          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm mb-4">
             {error}
           </div>
         )}
 
         {success && (
-          <div
-            style={{
-              padding: "12px 16px",
-              backgroundColor: "#f0fdf4",
-              border: "1px solid #bbf7d0",
-              borderRadius: "6px",
-              color: "#16a34a",
-              fontSize: "14px",
-              marginBottom: "16px",
-            }}
-          >
+          <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm mb-4">
             {success}
           </div>
         )}
@@ -477,73 +372,20 @@ export default function LoginPage() {
         <button
           onClick={handleLogin}
           disabled={loading}
-          style={{
-            width: "100%",
-            padding: 10,
-            backgroundColor: loading ? "#9ca3af" : "#0070f3",
-            color: "white",
-            border: "none",
-            borderRadius: 6,
-            fontWeight: "bold",
-            fontSize: "16px",
-            cursor: loading ? "not-allowed" : "pointer",
-            transition: "background-color 0.2s",
-          }}
-          onMouseOver={(e) => {
-            if (!loading) {
-              (e.target as HTMLButtonElement).style.backgroundColor = "#0051cc";
-            }
-          }}
-          onMouseOut={(e) => {
-            if (!loading) {
-              (e.target as HTMLButtonElement).style.backgroundColor = loading
-                ? "#9ca3af"
-                : "#0070f3";
-            }
-          }}
+          className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white border-none rounded-md font-semibold text-lg cursor-pointer disabled:cursor-not-allowed transition-colors duration-200"
         >
           {loading ? "Signing in..." : "Login"}
         </button>
 
         {/* Create Account Button */}
-        <div style={{ marginTop: 16, textAlign: "center" }}>
+        <div className="mt-4 text-center">
           <button
             onClick={() => setShowSignupModal(true)}
-            style={{
-              width: "100%",
-              padding: 12,
-              background: "linear-gradient(135deg, #10b981 0%, #3b82f6 100%)",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              fontWeight: "600",
-              fontSize: "16px",
-              cursor: "pointer",
-              transition: "all 0.3s ease",
-              boxShadow: "0 4px 15px rgba(16, 185, 129, 0.3)",
-            }}
-            onMouseOver={(e) => {
-              (e.target as HTMLButtonElement).style.transform =
-                "translateY(-2px)";
-              (e.target as HTMLButtonElement).style.boxShadow =
-                "0 6px 20px rgba(16, 185, 129, 0.4)";
-            }}
-            onMouseOut={(e) => {
-              (e.target as HTMLButtonElement).style.transform = "translateY(0)";
-              (e.target as HTMLButtonElement).style.boxShadow =
-                "0 4px 15px rgba(16, 185, 129, 0.3)";
-            }}
+            className="w-full py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white border-none rounded-lg font-semibold text-base cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
             ✨ Create Account
           </button>
-          <p
-            style={{
-              marginTop: 8,
-              fontSize: "12px",
-              color: "#6b7280",
-              fontStyle: "italic",
-            }}
-          >
+          <p className="mt-2 text-xs text-gray-500 italic">
             New service providers can create an account here
           </p>
         </div>
@@ -551,87 +393,23 @@ export default function LoginPage() {
 
       {/* Signup Modal */}
       {showSignupModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.7)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            animation: "fadeIn 0.3s ease-out",
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "white",
-              borderRadius: 16,
-              padding: 0,
-              maxWidth: "600px",
-              width: "90%",
-              maxHeight: "90vh",
-              overflow: "auto",
-              boxShadow: "0 25px 50px rgba(0, 0, 0, 0.25)",
-              animation: "slideUp 0.3s ease-out",
-            }}
-          >
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center p-2 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-slide-up">
             {/* Header */}
-            <div
-              style={{
-                padding: "24px 32px 20px",
-                borderBottom: "1px solid #e5e7eb",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div>
-                <h2
-                  style={{
-                    fontSize: "24px",
-                    fontWeight: "700",
-                    color: "#111827",
-                    margin: 0,
-                  }}
-                >
+                <h3 className="text-2xl font-bold text-gray-900">
                   Create Your Account
-                </h2>
-                <p
-                  style={{
-                    fontSize: "14px",
-                    color: "#6b7280",
-                    margin: "4px 0 0 0",
-                  }}
-                >
+                </h3>
+                <p className="text-gray-600 mt-2 text-lg">
                   Join Flow34 as a service provider
                 </p>
               </div>
               <button
                 onClick={() => setShowSignupModal(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  fontSize: "24px",
-                  cursor: "pointer",
-                  color: "#9ca3af",
-                  padding: "4px",
-                  borderRadius: "6px",
-                  transition: "all 0.2s",
-                }}
-                onMouseOver={(e) =>
-                  ((e.target as HTMLButtonElement).style.backgroundColor =
-                    "#f3f4f6")
-                }
-                onMouseOut={(e) =>
-                  ((e.target as HTMLButtonElement).style.backgroundColor =
-                    "transparent")
-                }
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                ×
+                <span className="text-2xl text-gray-500">×</span>
               </button>
             </div>
 
@@ -641,38 +419,17 @@ export default function LoginPage() {
                 e.preventDefault();
                 handleSignup();
               }}
-              style={{ padding: "32px" }}
+              className="p-6"
             >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "24px",
-                }}
-              >
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 {/* Left Column */}
                 <div>
-                  <h3
-                    style={{
-                      fontSize: "18px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      marginBottom: "16px",
-                    }}
-                  >
+                  <h3 className="text-2xl font-semibold text-gray-800 mb-6">
                     Personal Information
                   </h3>
 
-                  <div style={{ marginBottom: "16px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "6px",
-                      }}
-                    >
+                  <div className="mb-6">
+                    <label className="block text-base font-medium text-gray-700 mb-2">
                       First Name *
                     </label>
                     <input
@@ -682,30 +439,13 @@ export default function LoginPage() {
                       onChange={(e) =>
                         handleInputChange("firstName", e.target.value)
                       }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        transition: "border-color 0.2s",
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-                      onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter first name"
                     />
                   </div>
 
-                  <div style={{ marginBottom: "16px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "6px",
-                      }}
-                    >
+                  <div className="mb-6">
+                    <label className="block text-base font-medium text-gray-700 mb-2">
                       Last Name *
                     </label>
                     <input
@@ -715,30 +455,13 @@ export default function LoginPage() {
                       onChange={(e) =>
                         handleInputChange("lastName", e.target.value)
                       }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        transition: "border-color 0.2s",
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-                      onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter last name"
                     />
                   </div>
 
-                  <div style={{ marginBottom: "16px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "6px",
-                      }}
-                    >
+                  <div className="mb-6">
+                    <label className="block text-base font-medium text-gray-700 mb-2">
                       Email Address *
                     </label>
                     <input
@@ -748,30 +471,13 @@ export default function LoginPage() {
                       onChange={(e) =>
                         handleInputChange("email", e.target.value)
                       }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        transition: "border-color 0.2s",
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-                      onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter email address"
                     />
                   </div>
 
-                  <div style={{ marginBottom: "16px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "6px",
-                      }}
-                    >
+                  <div className="mb-6">
+                    <label className="block text-base font-medium text-gray-700 mb-2">
                       Phone Number *
                     </label>
                     <input
@@ -781,16 +487,7 @@ export default function LoginPage() {
                       onChange={(e) =>
                         handleInputChange("phone", e.target.value)
                       }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        transition: "border-color 0.2s",
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-                      onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="+27 12 345 6789"
                     />
                   </div>
@@ -798,27 +495,12 @@ export default function LoginPage() {
 
                 {/* Right Column */}
                 <div>
-                  <h3
-                    style={{
-                      fontSize: "18px",
-                      fontWeight: "600",
-                      color: "#374151",
-                      marginBottom: "16px",
-                    }}
-                  >
+                  <h3 className="text-2xl font-semibold text-gray-800 mb-6">
                     Business Information
                   </h3>
 
-                  <div style={{ marginBottom: "16px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "6px",
-                      }}
-                    >
+                  <div className="mb-6">
+                    <label className="block text-base font-medium text-gray-700 mb-2">
                       Business Name *
                     </label>
                     <input
@@ -828,30 +510,13 @@ export default function LoginPage() {
                       onChange={(e) =>
                         handleInputChange("businessName", e.target.value)
                       }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        transition: "border-color 0.2s",
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-                      onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter business name"
                     />
                   </div>
 
-                  <div style={{ marginBottom: "16px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "6px",
-                      }}
-                    >
+                  <div className="mb-6">
+                    <label className="block text-base font-medium text-gray-700 mb-2">
                       Service Type *
                     </label>
                     <input
@@ -861,30 +526,13 @@ export default function LoginPage() {
                       onChange={(e) =>
                         handleInputChange("service", e.target.value)
                       }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        transition: "border-color 0.2s",
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-                      onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., Cleaning, Maintenance, Security"
                     />
                   </div>
 
-                  <div style={{ marginBottom: "16px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "6px",
-                      }}
-                    >
+                  <div className="mb-6">
+                    <label className="block text-base font-medium text-gray-700 mb-2">
                       City *
                     </label>
                     <input
@@ -894,30 +542,13 @@ export default function LoginPage() {
                       onChange={(e) =>
                         handleInputChange("city", e.target.value)
                       }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        transition: "border-color 0.2s",
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-                      onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter city"
                     />
                   </div>
 
-                  <div style={{ marginBottom: "16px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "6px",
-                      }}
-                    >
+                  <div className="mb-6">
+                    <label className="block text-base font-medium text-gray-700 mb-2">
                       State *
                     </label>
                     <input
@@ -927,16 +558,7 @@ export default function LoginPage() {
                       onChange={(e) =>
                         handleInputChange("state", e.target.value)
                       }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        transition: "border-color 0.2s",
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-                      onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter state"
                     />
                   </div>
@@ -944,34 +566,13 @@ export default function LoginPage() {
               </div>
 
               {/* Password Section */}
-              <div style={{ marginTop: "24px" }}>
-                <h3
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: "600",
-                    color: "#374151",
-                    marginBottom: "16px",
-                  }}
-                >
+              <div className="mt-12">
+                <h3 className="text-2xl font-semibold text-gray-800 mb-6">
                   Security
                 </h3>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "24px",
-                  }}
-                >
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                   <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "6px",
-                      }}
-                    >
+                    <label className="block text-base font-medium text-gray-700 mb-2">
                       Password *
                     </label>
                     <input
@@ -981,39 +582,16 @@ export default function LoginPage() {
                       onChange={(e) =>
                         handleInputChange("password", e.target.value)
                       }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        transition: "border-color 0.2s",
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-                      onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Create a password"
                     />
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: "#6b7280",
-                        margin: "4px 0 0 0",
-                      }}
-                    >
+                    <p className="text-sm text-gray-500 mt-2">
                       Must be at least 6 characters
                     </p>
                   </div>
 
                   <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "#374151",
-                        marginBottom: "6px",
-                      }}
-                    >
+                    <label className="block text-base font-medium text-gray-700 mb-2">
                       Confirm Password *
                     </label>
                     <input
@@ -1023,16 +601,7 @@ export default function LoginPage() {
                       onChange={(e) =>
                         handleInputChange("confirmPassword", e.target.value)
                       }
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: "8px",
-                        fontSize: "14px",
-                        transition: "border-color 0.2s",
-                      }}
-                      onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-                      onBlur={(e) => (e.target.style.borderColor = "#d1d5db")}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Confirm your password"
                     />
                   </div>
@@ -1041,73 +610,23 @@ export default function LoginPage() {
 
               {/* Error/Success Messages */}
               {error && (
-                <div
-                  style={{
-                    marginTop: "20px",
-                    padding: "12px 16px",
-                    backgroundColor: "#fef2f2",
-                    border: "1px solid #fecaca",
-                    borderRadius: "8px",
-                    color: "#dc2626",
-                    fontSize: "14px",
-                  }}
-                >
+                <div className="mt-8 px-6 py-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-base">
                   {error}
                 </div>
               )}
 
               {success && (
-                <div
-                  style={{
-                    marginTop: "20px",
-                    padding: "12px 16px",
-                    backgroundColor: "#f0fdf4",
-                    border: "1px solid #bbf7d0",
-                    borderRadius: "8px",
-                    color: "#16a34a",
-                    fontSize: "14px",
-                  }}
-                >
+                <div className="mt-8 px-6 py-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-base">
                   {success}
                 </div>
               )}
 
               {/* Submit Button */}
-              <div style={{ marginTop: "32px" }}>
+              <div className="mt-12">
                 <button
                   type="submit"
                   disabled={loading}
-                  style={{
-                    width: "100%",
-                    padding: "14px",
-                    background:
-                      "linear-gradient(135deg, #10b981 0%, #3b82f6 100%)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "10px",
-                    fontWeight: "600",
-                    fontSize: "16px",
-                    cursor: loading ? "not-allowed" : "pointer",
-                    opacity: loading ? 0.6 : 1,
-                    transition: "all 0.3s ease",
-                    boxShadow: "0 4px 15px rgba(16, 185, 129, 0.3)",
-                  }}
-                  onMouseOver={(e) => {
-                    if (!loading) {
-                      (e.target as HTMLButtonElement).style.transform =
-                        "translateY(-2px)";
-                      (e.target as HTMLButtonElement).style.boxShadow =
-                        "0 6px 20px rgba(16, 185, 129, 0.4)";
-                    }
-                  }}
-                  onMouseOut={(e) => {
-                    if (!loading) {
-                      (e.target as HTMLButtonElement).style.transform =
-                        "translateY(0)";
-                      (e.target as HTMLButtonElement).style.boxShadow =
-                        "0 4px 15px rgba(16, 185, 129, 0.3)";
-                    }
-                  }}
+                  className="w-full py-4 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white border-none rounded-lg font-semibold text-base cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {loading ? "Creating Account..." : "Create Account"}
                 </button>
@@ -1115,32 +634,14 @@ export default function LoginPage() {
             </form>
 
             {/* Footer */}
-            <div
-              style={{
-                padding: "20px 32px 24px",
-                borderTop: "1px solid #e5e7eb",
-                textAlign: "center",
-              }}
-            >
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: "#6b7280",
-                  margin: 0,
-                }}
-              >
+            <div className="p-6 border-t border-gray-200 text-center">
+              <p className="text-sm text-gray-600">
                 By creating an account, you agree to our{" "}
-                <a
-                  href="#"
-                  style={{ color: "#3b82f6", textDecoration: "none" }}
-                >
+                <a href="#" className="text-blue-600 hover:underline">
                   Terms of Service
                 </a>{" "}
                 and{" "}
-                <a
-                  href="#"
-                  style={{ color: "#3b82f6", textDecoration: "none" }}
-                >
+                <a href="#" className="text-blue-600 hover:underline">
                   Privacy Policy
                 </a>
               </p>
@@ -1149,27 +650,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* CSS Animations */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+      {/* Remove old CSS animations since we're using Tailwind now */}
     </div>
   );
 }
