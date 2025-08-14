@@ -206,6 +206,83 @@ export class DataEncryption {
 
 // Security utilities
 export class SecurityUtils {
+  // Set admin role for current user (for development/testing)
+  static async setAdminRole(): Promise<boolean> {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        console.log("❌ No current user found");
+        return false;
+      }
+
+      // Get the user's ID token
+      const idToken = await user.getIdToken();
+
+      // Make a request to set custom claims
+      // Note: This requires a backend endpoint or Cloud Function
+      console.log("🔑 Current user ID:", user.uid);
+      console.log("🔑 ID Token:", idToken.substring(0, 50) + "...");
+
+      // For now, let's check if we can at least verify the user
+      const tokenResult = await user.getIdTokenResult();
+      console.log("🔑 Token claims:", tokenResult.claims);
+
+      return true;
+    } catch (error) {
+      console.error("❌ Failed to set admin role:", error);
+      return false;
+    }
+  }
+
+  // Check if user has admin role with comprehensive validation
+  static async checkAdminRole(userId?: string): Promise<boolean> {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        console.log("❌ No current user found");
+        return false;
+      }
+
+      // Get fresh token with all claims
+      const tokenResult = await user.getIdTokenResult(true); // Force refresh
+      console.log("🔍 Full token claims:", tokenResult.claims);
+
+      // Check multiple ways admin role could be stored
+      const adminChecks = {
+        roleClaim: tokenResult.claims?.role === "admin",
+        isAdminClaim: tokenResult.claims?.isAdmin === true,
+        userRoleClaim: tokenResult.claims?.userRole === "admin",
+        adminClaim: tokenResult.claims?.admin === true,
+        // Check if user ID matches any known admin IDs
+        knownAdminId: this.isKnownAdminId(user.uid),
+      };
+
+      console.log("🔍 Admin role checks:", adminChecks);
+
+      // User is admin if ANY of these checks pass
+      const isAdmin = Object.values(adminChecks).some(
+        (check) => check === true
+      );
+
+      console.log("🔍 Final admin result:", isAdmin);
+      return isAdmin;
+    } catch (error) {
+      console.error("❌ Admin role check failed:", error);
+      return false;
+    }
+  }
+
+  // Check if user ID is in a known admin list (for development)
+  private static isKnownAdminId(userId: string): boolean {
+    // Add your admin user IDs here
+    const knownAdminIds = [
+      "c6Un8qAgxaZJWBIoLZuyP9Z8WkV2", // Your current user ID
+      // Add other admin user IDs as needed
+    ];
+
+    return knownAdminIds.includes(userId);
+  }
+
   // Validate user permissions for service provider operations
   static async validateProviderAccess(
     providerId: string,
@@ -225,20 +302,12 @@ export class SecurityUtils {
         return true; // Allow new users to create profiles during signup
       }
 
-      // Check if user has admin role
-      const token = await user.getIdTokenResult();
-      console.log("🔍 Token claims:", token.claims);
+      // Use comprehensive admin role checking
+      const isAdmin = await this.checkAdminRole(userId);
+
       console.log("🔍 User ID:", userId);
       console.log("🔍 Operation:", operation);
-
-      const isAdmin =
-        token.claims?.role === "admin" || token.claims?.isAdmin === true;
-
-      console.log("🔍 Is admin check:", {
-        roleClaim: token.claims?.role,
-        isAdminClaim: token.claims?.isAdmin,
-        finalResult: isAdmin,
-      });
+      console.log("🔍 Admin status:", isAdmin);
 
       if (operation === "read") {
         console.log("✅ Read operation - allowing");

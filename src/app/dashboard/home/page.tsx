@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -11,63 +11,69 @@ import {
   Eye,
   DollarSign,
   Calendar,
+  RefreshCw,
 } from "lucide-react";
-
-interface DashboardStats {
-  totalProviders: number;
-  activeProviders: number;
-  totalProperties: number;
-  activeProperties: number;
-  monthlyRevenue: number;
-  pendingInvoices: number;
-  upcomingServices: number;
-  alerts: number;
-}
-
-const mockStats: DashboardStats = {
-  totalProviders: 12,
-  activeProviders: 10,
-  totalProperties: 25,
-  activeProperties: 23,
-  monthlyRevenue: 45000,
-  pendingInvoices: 8,
-  upcomingServices: 15,
-  alerts: 3,
-};
-
-const recentActivities = [
-  {
-    id: "1",
-    type: "service",
-    title: "Tech Solutions Inc. completed maintenance",
-    time: "2 hours ago",
-    status: "completed",
-  },
-  {
-    id: "2",
-    type: "invoice",
-    title: "Invoice #INV-2024-005 sent to Digital Marketing Pro",
-    time: "4 hours ago",
-    status: "sent",
-  },
-  {
-    id: "3",
-    type: "alert",
-    title: "Property #123 requires attention",
-    time: "6 hours ago",
-    status: "pending",
-  },
-  {
-    id: "4",
-    type: "provider",
-    title: "New service provider registered: Financial Advisors LLC",
-    time: "1 day ago",
-    status: "new",
-  },
-];
+import {
+  DashboardService,
+  DashboardStats,
+  RecentActivity,
+  ProviderSummary,
+  PropertySummary,
+} from "@/services/dashboardService";
 
 export default function HomePage() {
-  const [stats] = useState<DashboardStats>(mockStats);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalProviders: 0,
+    activeProviders: 0,
+    totalProperties: 0,
+    activeProperties: 0,
+    monthlyRevenue: 0,
+    pendingInvoices: 0,
+    upcomingServices: 0,
+    alerts: 0,
+  });
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>(
+    []
+  );
+  const [topProviders, setTopProviders] = useState<ProviderSummary[]>([]);
+  const [topProperties, setTopProperties] = useState<PropertySummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch dashboard data on component mount
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch all data in parallel
+      const [statsData, activitiesData, providersData, propertiesData] =
+        await Promise.all([
+          DashboardService.getDashboardStats(),
+          DashboardService.getRecentActivities(),
+          DashboardService.getTopProviders(),
+          DashboardService.getTopProperties(),
+        ]);
+
+      setStats(statsData);
+      setRecentActivities(activitiesData);
+      setTopProviders(providersData);
+      setTopProperties(propertiesData);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboardData();
+    setRefreshing(false);
+  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -106,52 +112,85 @@ export default function HomePage() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">
-          Track your service providers and properties
-        </p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-2">
+            Welcome back! Here's what's happening with your properties and
+            service providers.
+          </p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <RefreshCw
+            size={16}
+            className={`mr-2 ${refreshing ? "animate-spin" : ""}`}
+          />
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
+        {/* Service Providers */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="text-blue-600" size={24} />
+              <Users className="h-6 w-6 text-blue-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">
                 Service Providers
               </p>
               <p className="text-2xl font-bold text-gray-900">
-                {stats.activeProviders}/{stats.totalProviders}
+                {stats.totalProviders}
+              </p>
+              <p className="text-sm text-green-600">
+                {stats.activeProviders} active
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
+        {/* Properties */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
-              <Building2 className="text-green-600" size={24} />
+              <Building2 className="h-6 w-6 text-green-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Properties</p>
               <p className="text-2xl font-bold text-gray-900">
-                {stats.activeProperties}/{stats.totalProperties}
+                {stats.totalProperties}
+              </p>
+              <p className="text-sm text-green-600">
+                {stats.activeProperties} active
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
+        {/* Monthly Revenue */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-100 rounded-lg">
-              <TrendingUp className="text-yellow-600" size={24} />
+              <TrendingUp className="h-6 w-6 text-yellow-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">
@@ -160,135 +199,213 @@ export default function HomePage() {
               <p className="text-2xl font-bold text-gray-900">
                 {formatCurrency(stats.monthlyRevenue)}
               </p>
+              <p className="text-sm text-green-600">This month</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
+        {/* Pending Invoices */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-red-100 rounded-lg">
-              <AlertTriangle className="text-red-600" size={24} />
+              <AlertTriangle className="h-6 w-6 text-red-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Active Alerts</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.alerts}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Pending Invoices
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.pendingInvoices}
+              </p>
+              <p className="text-sm text-yellow-600">Requires attention</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Link
-          href="/dashboard/service-providers"
-          className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Manage Providers
-              </h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Add, edit, and track service providers
-              </p>
-            </div>
-            <Plus className="text-blue-600" size={24} />
+      {/* Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Recent Activities */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Recent Activities
+            </h2>
           </div>
-        </Link>
-
-        <Link
-          href="/dashboard/invoices"
-          className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Invoices</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                {stats.pendingInvoices} pending invoices
-              </p>
-            </div>
-            <DollarSign className="text-green-600" size={24} />
-          </div>
-        </Link>
-
-        <Link
-          href="/dashboard/financial-reports"
-          className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Financial Reports
-              </h3>
-              <p className="text-sm text-gray-600 mt-1">
-                View weekly and monthly reports
-              </p>
-            </div>
-            <TrendingUp className="text-purple-600" size={24} />
-          </div>
-        </Link>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Recent Activity
-          </h2>
-        </div>
-        <div className="p-6">
-          <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  {getActivityIcon(activity.type)}
-                  <div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {recentActivities.map((activity) => (
+                <div key={activity.id} className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 mt-1">
+                    {getActivityIcon(activity.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">
                       {activity.title}
                     </p>
-                    <p className="text-xs text-gray-500">{activity.time}</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <span className="text-xs text-gray-500">
+                        {activity.time}
+                      </span>
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getActivityColor(
+                          activity.status
+                        )}`}
+                      >
+                        {activity.status}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <span
-                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getActivityColor(
-                    activity.status
-                  )}`}
-                >
-                  {activity.status}
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Quick Actions
+            </h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-2 gap-4">
+              <Link
+                href="/dashboard/service-providers"
+                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-colors"
+              >
+                <Users className="h-8 w-8 text-blue-600 mb-2" />
+                <span className="text-sm font-medium text-gray-900">
+                  Manage Providers
                 </span>
-              </div>
-            ))}
+              </Link>
+              <Link
+                href="/dashboard/properties"
+                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors"
+              >
+                <Building2 className="h-8 w-8 text-green-600 mb-2" />
+                <span className="text-sm font-medium text-gray-900">
+                  View Properties
+                </span>
+              </Link>
+              <Link
+                href="/dashboard/invoices"
+                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:bg-yellow-50 transition-colors"
+              >
+                <DollarSign className="h-8 w-8 text-yellow-600 mb-2" />
+                <span className="text-sm font-medium text-gray-900">
+                  Manage Invoices
+                </span>
+              </Link>
+              <Link
+                href="/dashboard/analytics"
+                className="flex flex-col items-center p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors"
+              >
+                <TrendingUp className="h-8 w-8 text-purple-600 mb-2" />
+                <span className="text-sm font-medium text-gray-900">
+                  View Analytics
+                </span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Upcoming Services */}
-      <div className="mt-8 bg-white rounded-lg shadow-sm border">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
+      {/* Top Service Providers */}
+      {topProviders.length > 0 && (
+        <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">
-              Upcoming Services
+              Top Service Providers
             </h2>
-            <span className="text-sm text-gray-500">
-              {stats.upcomingServices} scheduled
-            </span>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {topProviders.map((provider) => (
+                <div
+                  key={provider.id}
+                  className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Users className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {provider.businessName}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {provider.service}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-600">Rating:</span>
+                      <span className="font-medium text-gray-900">
+                        {provider.rating}/5
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {provider.lastActive}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="p-6">
-          <div className="text-center py-8">
-            <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">
-              No upcoming services
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Services will appear here when scheduled.
-            </p>
+      )}
+
+      {/* Top Properties */}
+      {topProperties.length > 0 && (
+        <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Top Properties
+            </h2>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {topProperties.map((property) => (
+                <div
+                  key={property.id}
+                  className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <Building2 className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {property.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {property.address}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        property.status === "active"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {property.status}
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {property.lastUpdated}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

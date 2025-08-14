@@ -12,6 +12,7 @@ import {
   Users,
   Receipt,
   TrendingUp,
+  Building2,
 } from "lucide-react";
 import Link from "next/link";
 import clsx from "clsx";
@@ -27,6 +28,11 @@ const navItems = [
     name: "Service Providers",
     href: "/dashboard/service-providers",
     icon: <Users size={20} />,
+  },
+  {
+    name: "Properties",
+    href: "/dashboard/properties",
+    icon: <Building2 size={20} />,
   },
   {
     name: "Analytics",
