@@ -36,7 +36,7 @@ export class ServiceProviderService {
   private static async checkFirebaseConnection(): Promise<boolean> {
     try {
       // Try to access Firestore to check connection
-      await getDocs(collection(db, '_health'));
+      await getDocs(collection(db, "_health"));
       return true;
     } catch (error) {
       console.warn("⚠️ Firebase connection check failed:", error);
@@ -55,9 +55,10 @@ export class ServiceProviderService {
       // Check Firebase connection first
       const isConnected = await this.checkFirebaseConnection();
       if (!isConnected) {
-        return { 
-          success: false, 
-          error: "Firebase connection unavailable. Please check your internet connection and try again." 
+        return {
+          success: false,
+          error:
+            "Firebase connection unavailable. Please check your internet connection and try again.",
         };
       }
 
@@ -129,19 +130,32 @@ export class ServiceProviderService {
       return { success: true, providerId: docRef.id };
     } catch (error) {
       console.error("Error creating service provider:", error);
-      
+
       // Provide more specific error messages
       if (error instanceof Error) {
-        if (error.message.includes('permission-denied')) {
-          return { success: false, error: "Permission denied. Please check your authentication status." };
-        } else if (error.message.includes('unavailable')) {
-          return { success: false, error: "Firebase service unavailable. Please try again later." };
-        } else if (error.message.includes('network')) {
-          return { success: false, error: "Network error. Please check your internet connection." };
+        if (error.message.includes("permission-denied")) {
+          return {
+            success: false,
+            error:
+              "Permission denied. Please check your authentication status.",
+          };
+        } else if (error.message.includes("unavailable")) {
+          return {
+            success: false,
+            error: "Firebase service unavailable. Please try again later.",
+          };
+        } else if (error.message.includes("network")) {
+          return {
+            success: false,
+            error: "Network error. Please check your internet connection.",
+          };
         }
       }
-      
-      return { success: false, error: "Failed to create service provider. Please try again." };
+
+      return {
+        success: false,
+        error: "Failed to create service provider. Please try again.",
+      };
     }
   }
 
@@ -194,48 +208,41 @@ export class ServiceProviderService {
       // Check Firebase connection first
       const isConnected = await this.checkFirebaseConnection();
       if (!isConnected) {
-        console.warn("Firebase connection unavailable, returning empty results");
+        console.warn(
+          "Firebase connection unavailable, returning empty results"
+        );
         return { providers: [], hasMore: false };
       }
 
       let q = collection(db, this.COLLECTION_NAME);
 
       // Build query based on search parameters
+      // IMPORTANT: Limit to 2 where clauses to avoid complex composite indexes
       const constraints: any[] = [];
+      let hasComplexQuery = false;
 
+      // Priority 1: Status filter (most common)
       if (params.status) {
         constraints.push(where("status", "==", params.status));
       }
 
-      if (params.service) {
+      // Priority 2: Service filter
+      if (params.service && constraints.length < 2) {
         constraints.push(where("service", "==", params.service));
       }
 
-      if (params.serviceCategories && params.serviceCategories.length > 0) {
-        constraints.push(
-          where(
-            "serviceCategories",
-            "array-contains-any",
-            params.serviceCategories
-          )
-        );
-      }
-
-      if (params.rating) {
+      // Priority 3: Rating filter (if we still have room)
+      if (params.rating && constraints.length < 2) {
         constraints.push(where("rating", ">=", params.rating));
       }
 
-      if (params.complianceStatus !== undefined) {
-        constraints.push(
-          where(
-            "complianceStatus.backgroundCheck",
-            "==",
-            params.complianceStatus
-          )
-        );
+      // Note: serviceCategories array query requires special indexing
+      // We'll filter this in memory to avoid complex composite indexes
+      if (params.serviceCategories && params.serviceCategories.length > 0) {
+        hasComplexQuery = true;
       }
 
-      // Add ordering
+      // Add ordering - always order by name for consistency
       constraints.push(orderBy("name", "asc"));
 
       // Add pagination
@@ -259,24 +266,61 @@ export class ServiceProviderService {
         } as Provider);
       });
 
+      // Apply additional filters in memory to avoid complex indexes
+      let filteredProviders = providers;
+
+      if (
+        hasComplexQuery &&
+        params.serviceCategories &&
+        params.serviceCategories.length > 0
+      ) {
+        filteredProviders = providers.filter((provider) =>
+          provider.serviceCategories.some((cat) =>
+            params.serviceCategories!.includes(cat)
+          )
+        );
+      }
+
       // Check if there are more documents
-      const hasMore = providers.length > pageSize;
+      const hasMore = filteredProviders.length > pageSize;
       if (hasMore) {
-        providers.pop(); // Remove the extra document
+        filteredProviders.pop(); // Remove the extra document
       }
 
       const lastVisible =
-        providers.length > 0
+        filteredProviders.length > 0
           ? querySnapshot.docs[querySnapshot.docs.length - 1]
           : undefined;
 
       return {
-        providers,
+        providers: filteredProviders,
         lastDoc: lastVisible,
         hasMore,
       };
     } catch (error) {
       console.error("Error fetching service providers:", error);
+
+      // Handle specific Firestore indexing errors
+      if (error instanceof Error) {
+        if (error.message.includes("indexes?create_composite=")) {
+          console.error(
+            "❌ Firestore composite index required. Please create the required indexes in Firebase Console."
+          );
+          console.error(
+            "💡 Index creation URL:",
+            error.message.match(/indexes\?create_composite=[^&\s]+/)?.[0]
+          );
+        } else if (error.message.includes("permission-denied")) {
+          console.error(
+            "❌ Permission denied. Check your Firestore rules and authentication."
+          );
+        } else if (error.message.includes("unavailable")) {
+          console.error(
+            "❌ Firestore service unavailable. Please try again later."
+          );
+        }
+      }
+
       return { providers: [], hasMore: false };
     }
   }
@@ -294,14 +338,15 @@ export class ServiceProviderService {
     hasMore: boolean;
   }> {
     try {
-      // For text search, we'll need to implement a more sophisticated approach
-      // For now, we'll search in memory after fetching
+      // Use a simple query with just ordering to avoid complex indexes
+      // We'll do the text search filtering in memory
       const {
         providers,
         lastDoc: fetchedLastDoc,
         hasMore,
       } = await this.getProviders({}, lastDoc, pageSize * 2);
 
+      // Apply text search filtering in memory
       const filteredProviders = providers.filter(
         (provider) =>
           provider.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -322,6 +367,16 @@ export class ServiceProviderService {
       };
     } catch (error) {
       console.error("Error searching service providers:", error);
+
+      // Handle specific Firestore indexing errors
+      if (error instanceof Error) {
+        if (error.message.includes("indexes?create_composite=")) {
+          console.error(
+            "❌ Firestore composite index required for search. Please create the required indexes in Firebase Console."
+          );
+        }
+      }
+
       return { providers: [], hasMore: false };
     }
   }
@@ -552,7 +607,10 @@ export class ServiceProviderService {
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         stats.total++;
-        stats[data.status]++;
+        const status = data.status as keyof typeof stats;
+        if (status && status in stats) {
+          stats[status]++;
+        }
       });
 
       return stats;

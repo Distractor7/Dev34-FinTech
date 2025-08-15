@@ -175,15 +175,22 @@ export class DashboardService {
    */
   static async getTopProviders(): Promise<ProviderSummary[]> {
     try {
+      // Use a simple query to avoid complex composite indexes
+      // We'll filter and sort in memory instead
       const providersQuery = query(
         collection(db, this.PROVIDERS_COLLECTION),
-        where("status", "==", "active"),
-        orderBy("rating", "desc"),
-        limit(5)
+        orderBy("createdAt", "desc"), // Simple ordering by creation date
+        limit(20) // Get more documents to filter from
       );
       const providersSnapshot = await getDocs(providersQuery);
 
-      return providersSnapshot.docs.map((doc) => {
+      // Filter and sort in memory to avoid complex Firestore indexes
+      const activeProviders = providersSnapshot.docs
+        .filter((doc) => doc.data().status === "active")
+        .sort((a, b) => (b.data().rating || 0) - (a.data().rating || 0))
+        .slice(0, 5); // Take top 5 by rating
+
+      return activeProviders.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -199,6 +206,20 @@ export class DashboardService {
       });
     } catch (error) {
       console.error("Error fetching top providers:", error);
+
+      // Handle specific Firestore indexing errors
+      if (error instanceof Error) {
+        if (error.message.includes("indexes?create_composite=")) {
+          console.error(
+            "❌ Firestore composite index required for top providers. Please create the required indexes in Firebase Console."
+          );
+          console.error(
+            "💡 Index creation URL:",
+            error.message.match(/indexes\?create_composite=[^&\s]+/)?.[0]
+          );
+        }
+      }
+
       return [];
     }
   }
@@ -208,15 +229,21 @@ export class DashboardService {
    */
   static async getTopProperties(): Promise<PropertySummary[]> {
     try {
+      // Use a simple query to avoid complex composite indexes
+      // We'll filter in memory instead
       const propertiesQuery = query(
         collection(db, this.PROPERTIES_COLLECTION),
-        where("status", "==", "active"),
-        orderBy("createdAt", "desc"),
-        limit(5)
+        orderBy("createdAt", "desc"), // Simple ordering by creation date
+        limit(20) // Get more documents to filter from
       );
       const propertiesSnapshot = await getDocs(propertiesQuery);
 
-      return propertiesSnapshot.docs.map((doc) => {
+      // Filter in memory to avoid complex Firestore indexes
+      const activeProperties = propertiesSnapshot.docs
+        .filter((doc) => doc.data().status === "active")
+        .slice(0, 5); // Take top 5 active properties
+
+      return activeProperties.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -228,6 +255,20 @@ export class DashboardService {
       });
     } catch (error) {
       console.error("Error fetching top properties:", error);
+
+      // Handle specific Firestore indexing errors
+      if (error instanceof Error) {
+        if (error.message.includes("indexes?create_composite=")) {
+          console.error(
+            "❌ Firestore composite index required for top properties. Please create the required indexes in Firebase Console."
+          );
+          console.error(
+            "💡 Index creation URL:",
+            error.message.match(/indexes\?create_composite=[^&\s]+/)?.[0]
+          );
+        }
+      }
+
       return [];
     }
   }

@@ -1,0 +1,29 @@
+# Cursor Rules for ChatGPT 5 Integration
+
+# This file configures how Cursor should interact with ChatGPT 5
+# Make sure to add your OpenAI API key in Cursor's settings
+
+# AI Model Configuration
+model: gpt-5
+temperature: 0.7
+max_tokens: 4000
+
+# Code Generation Rules
+- Always provide clear, well-documented code
+- Include TypeScript types when applicable
+- Follow React/Next.js best practices
+- Add proper error handling
+- Include relevant imports and dependencies
+
+# Project-Specific Rules
+- This is a Next.js fintech application
+- Use modern React patterns (hooks, functional components)
+- Follow the existing project structure and naming conventions
+- Prioritize security for financial data
+- Include proper validation and error handling
+
+# Documentation
+- Add JSDoc comments for complex functions
+- Include usage examples where helpful
+- Document any financial calculations or business logic
+
