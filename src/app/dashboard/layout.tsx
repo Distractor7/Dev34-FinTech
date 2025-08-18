@@ -1,11 +1,10 @@
 // src/app/(dashboard)/layout.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import gsap from "gsap";
-import { auth } from "@/services/firebaseConfig";
-import UserService from "@/services/userService";
+import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "../components/sideNav/page";
 import Topbar from "../components/topNav/page";
 import TransitionWrapper from "../components/transition/page";
@@ -18,53 +17,39 @@ export default function DashboardLayout({
   const layoutRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { user, userProfile, loading, error } = useAuth();
 
   useEffect(() => {
-    const checkUserAccess = async () => {
-      try {
-        const user = auth.currentUser;
-        if (!user) {
-          router.push("/");
-          return;
-        }
-
-        const profile = await UserService.getUserProfile(user.uid);
-        if (!profile) {
-          router.push("/");
-          return;
-        }
-
-        setUserRole(profile.role);
-
-        // If user is a service provider and trying to access main dashboard, redirect them
-        if (
-          profile.role === "service_provider" &&
-          pathname !== "/dashboard/coming-soon"
-        ) {
-          router.push("/dashboard/coming-soon");
-          return;
-        }
-
-        // If user is admin and trying to access coming-soon page, redirect them to main dashboard
-        if (profile.role === "admin" && pathname === "/dashboard/coming-soon") {
-          router.push("/dashboard/home");
-          return;
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Error checking user access:", error);
+    // Handle authentication state
+    if (!loading) {
+      if (!user || !userProfile) {
+        console.log("No authenticated user, redirecting to login");
         router.push("/");
+        return;
       }
-    };
 
-    checkUserAccess();
-  }, [router, pathname]);
+      // If user is a service provider and trying to access main dashboard, redirect them
+      if (
+        userProfile.role === "service_provider" &&
+        pathname !== "/dashboard/coming-soon"
+      ) {
+        router.push("/dashboard/coming-soon");
+        return;
+      }
+
+      // If user is admin and trying to access coming-soon page, redirect them to main dashboard
+      if (
+        userProfile.role === "admin" &&
+        pathname === "/dashboard/coming-soon"
+      ) {
+        router.push("/dashboard/home");
+        return;
+      }
+    }
+  }, [user, userProfile, loading, pathname, router]);
 
   useEffect(() => {
-    if (!loading && layoutRef.current) {
+    if (!loading && user && userProfile && layoutRef.current) {
       gsap.fromTo(
         layoutRef.current,
         {
@@ -81,7 +66,7 @@ export default function DashboardLayout({
         }
       );
     }
-  }, [loading]);
+  }, [loading, user, userProfile]);
 
   if (loading) {
     return (
@@ -94,9 +79,30 @@ export default function DashboardLayout({
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 mb-4">Authentication Error</div>
+          <p className="text-gray-600">{error}</p>
+          <button
+            onClick={() => router.push("/")}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !userProfile) {
+    return null; // Will redirect in useEffect
+  }
+
   // Don't show sidebar/navbar for service providers on coming-soon page
   if (
-    userRole === "service_provider" &&
+    userProfile.role === "service_provider" &&
     pathname === "/dashboard/coming-soon"
   ) {
     return <>{children}</>;

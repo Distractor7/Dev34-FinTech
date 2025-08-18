@@ -1,5 +1,10 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, connectAuthEmulator } from "firebase/auth";
+import {
+  getAuth,
+  connectAuthEmulator,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth";
 import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { getStorage, connectStorageEmulator } from "firebase/storage";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
@@ -59,6 +64,17 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
+
+// Configure auth persistence to keep users logged in
+setPersistence(auth, browserLocalPersistence)
+  .then(() => {
+    console.log(
+      "✅ Firebase auth persistence configured - users will stay logged in"
+    );
+  })
+  .catch((error) => {
+    console.error("❌ Failed to configure auth persistence:", error);
+  });
 
 // Initialize Analytics only on client side and when supported
 export const analytics =

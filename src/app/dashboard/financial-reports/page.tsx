@@ -15,7 +15,11 @@ import {
   FileText,
 } from "lucide-react";
 import { Property, PeriodGranularity, PropertyRankItem } from "@/types/float34";
-import { getApi } from "@/lib/api";
+import FinancialService, {
+  FinancialSummary,
+  PropertyFinancialData,
+  FinancialTimeSeries,
+} from "@/services/financialService";
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -39,18 +43,23 @@ function getDefaultPeriodRange(granularity: PeriodGranularity): {
   from: string;
   to: string;
 } {
-  const to = new Date();
+  const now = new Date();
   let from = new Date();
+  let to = new Date();
 
   switch (granularity) {
     case "WEEK":
       from.setDate(from.getDate() - 84); // 12 weeks
+      to = now; // Current date
       break;
     case "MONTH":
       from.setMonth(from.getMonth() - 12); // 12 months
+      to = now; // Current date
       break;
     case "YEAR":
-      from.setFullYear(from.getFullYear() - 5); // 5 years
+      // For yearly reports, default to current year
+      from = new Date(now.getFullYear(), 0, 1); // January 1st of current year
+      to = new Date(now.getFullYear(), 11, 31); // December 31st of current year
       break;
   }
 
@@ -207,39 +216,64 @@ function PeriodSelector({
   propertyId?: string;
 }) {
   const getPeriodOptions = (g: PeriodGranularity) => {
+    const now = new Date();
+    const periods = [];
+
     switch (g) {
       case "WEEK":
-        return [
-          { value: "2024-W04", label: "Week 4, Jan 2024" },
-          { value: "2024-W03", label: "Week 3, Jan 2024" },
-          { value: "2024-W02", label: "Week 2, Jan 2024" },
-          { value: "2024-W01", label: "Week 1, Jan 2024" },
-          { value: "2023-W52", label: "Week 52, Dec 2023" },
-          { value: "2023-W51", label: "Week 51, Dec 2023" },
-          { value: "2023-W50", label: "Week 50, Dec 2023" },
-          { value: "2023-W49", label: "Week 49, Dec 2023" },
-          { value: "2023-W48", label: "Week 48, Nov 2023" },
-          { value: "2023-W47", label: "Week 47, Nov 2023" },
-          { value: "2023-W46", label: "Week 46, Nov 2023" },
-          { value: "2023-W45", label: "Week 45, Nov 2023" },
-        ];
+        // Generate 52 weeks back and 4 weeks forward
+        for (let i = -52; i <= 4; i++) {
+          const date = new Date(now.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+          const weekNumber = getWeekNumber(date);
+          periods.push({
+            value: `${date.getFullYear()}-W${weekNumber
+              .toString()
+              .padStart(2, "0")}`,
+            label: `Week ${weekNumber}, ${date.toLocaleDateString("en-US", {
+              month: "short",
+              year: "numeric",
+            })}`,
+          });
+        }
+        break;
+
       case "MONTH":
-        return [
-          { value: "2024-01", label: "January 2024" },
-          { value: "2023-12", label: "December 2023" },
-          { value: "2023-11", label: "November 2023" },
-          { value: "2023-10", label: "October 2023" },
-          { value: "2023-09", label: "September 2023" },
-        ];
+        // Generate 24 months back and 6 months forward
+        for (let i = -24; i <= 6; i++) {
+          const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+          periods.push({
+            value: `${date.getFullYear()}-${String(
+              date.getMonth() + 1
+            ).padStart(2, "0")}`,
+            label: date.toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            }),
+          });
+        }
+        break;
+
       case "YEAR":
-        return [
-          { value: "2024", label: "2024" },
-          { value: "2023", label: "2023" },
-          { value: "2022", label: "2022" },
-        ];
-      default:
-        return [];
+        // Generate 10 years back and 2 years forward
+        for (let i = -10; i <= 2; i++) {
+          const year = now.getFullYear() + i;
+          periods.push({
+            value: year.toString(),
+            label: year.toString(),
+          });
+        }
+        break;
     }
+
+    return periods.reverse(); // Show oldest first
+  };
+
+  // Helper function to get week number
+  const getWeekNumber = (date: Date) => {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear =
+      (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   };
 
   const options = getPeriodOptions(granularity);
@@ -348,18 +382,52 @@ export default function FinancialReportsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const api = getApi();
-      const [propertiesData, financialData] = await Promise.all([
-        api.listProperties(),
-        api.getPropertyFinancials({
-          propertyId: propertyId || undefined,
-          from: debouncedFrom,
-          to: debouncedTo,
-          granularity,
-        }),
-      ]);
+      // Get properties from PropertyService
+      const PropertyService = await import("@/services/propertyService");
+      const propertiesData =
+        await PropertyService.PropertyService.getProperties();
+
+      // Get financial data from FinancialService
+      const [financialSummary, propertyFinancials, timeSeriesData] =
+        await Promise.all([
+          FinancialService.getFinancialSummary(debouncedFrom, debouncedTo),
+          FinancialService.getPropertyFinancials(debouncedFrom, debouncedTo),
+          FinancialService.getTimeSeriesData(
+            debouncedFrom,
+            debouncedTo,
+            granularity
+          ),
+        ]);
+
       setProperties(propertiesData);
-      setFinancialData(financialData);
+
+      // Transform data to match expected format
+      const transformedFinancialData = {
+        summary: {
+          revenue: financialSummary.revenue,
+          expenses: financialSummary.expenses,
+          profit: financialSummary.profit,
+          marginPct: financialSummary.marginPct,
+          invoicesPaidPct: financialSummary.invoicesPaidPct,
+        },
+        byProperty: propertyFinancials.map((pf) => ({
+          propertyId: pf.propertyId,
+          propertyName: pf.propertyName,
+          revenue: pf.revenue,
+          profit: pf.profit,
+          marginPct: pf.marginPct,
+          invoicesPaidPct: pf.invoicesPaidPct,
+        })),
+        series: timeSeriesData.map((ts) => ({
+          period: ts.period,
+          revenue: ts.revenue,
+          expenses: ts.expenses,
+          profit: ts.profit,
+          invoiceCount: ts.invoiceCount,
+        })),
+      };
+
+      setFinancialData(transformedFinancialData);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -466,7 +534,30 @@ export default function FinancialReportsPage() {
   if (!financialData) {
     return (
       <div className="p-6 text-center">
-        <p className="text-gray-500">No financial data available</p>
+        <div className="max-w-md mx-auto">
+          <BarChart3 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No Financial Data Available
+          </h3>
+          <p className="text-gray-600 mb-6">
+            Get started by adding some sample data or creating your first
+            invoices to see financial reports.
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={() => FinancialService.seedSampleData()}
+              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Add Sample Data
+            </button>
+            <button
+              onClick={() => router.push("/dashboard/invoices")}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Create First Invoice
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -498,19 +589,54 @@ export default function FinancialReportsPage() {
               )}`}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex items-center space-x-2">
           <button
-            onClick={navigateToAllReports}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            onClick={() => FinancialService.debugDatabaseState()}
+            className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
+            title="Debug database state"
           >
-            <FileText size={20} />
-            View All Reports
+            🐛 Debug
+          </button>
+          <button
+            onClick={() => FinancialService.restoreRealInvoiceData()}
+            className="px-3 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm"
+            title="Restore real invoice data"
+          >
+            🔄 Restore
+          </button>
+          <button
+            onClick={() => FinancialService.createMissingPropertyForInvoice()}
+            className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+            title="Create missing property for existing invoice"
+          >
+            🏗️ Fix Data
+          </button>
+          <button
+            onClick={() => FinancialService.clearAndReseedSampleData()}
+            className="px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
+            title="Clear and recreate sample data"
+          >
+            🔄 Reset Data
+          </button>
+          <button
+            onClick={() => FinancialService.seedSampleData()}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+            title="Add sample data for testing"
+          >
+            Add Sample Data
+          </button>
+          <button
+            onClick={() => FinancialService.createNewInvoice()}
+            className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+            title="Create a new invoice"
+          >
+            📄 Add Invoice
           </button>
           <button
             onClick={exportFinancialReport}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
           >
-            <Download size={20} />
+            <Download size={16} className="mr-2 inline" />
             Export Report
           </button>
         </div>
@@ -531,11 +657,26 @@ export default function FinancialReportsPage() {
           </div>
 
           <div>
-            <PeriodSelector
-              granularity={granularity}
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              From Date
+            </label>
+            <input
+              type="date"
               value={from}
-              onChange={(value) => updateSearchParams({ from: value })}
-              propertyId={propertyId}
+              onChange={(e) => updateSearchParams({ from: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              To Date
+            </label>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => updateSearchParams({ to: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             />
           </div>
 
@@ -549,6 +690,42 @@ export default function FinancialReportsPage() {
             />
           </div>
 
+          {/* Year Selector - Only show when Yearly Reports is selected */}
+          {granularity === "YEAR" && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Select Year
+              </label>
+              <select
+                value={from.split("-")[0]}
+                onChange={(e) => {
+                  const selectedYear = e.target.value;
+                  const yearStart = new Date(parseInt(selectedYear), 0, 1);
+                  const yearEnd = new Date(parseInt(selectedYear), 11, 31);
+                  updateSearchParams({
+                    from: yearStart.toISOString().split("T")[0],
+                    to: yearEnd.toISOString().split("T")[0],
+                  });
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              >
+                {(() => {
+                  const years = [];
+                  const now = new Date();
+                  for (let i = -5; i <= 2; i++) {
+                    const year = now.getFullYear() + i;
+                    years.push(year);
+                  }
+                  return years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ));
+                })()}
+              </select>
+            </div>
+          )}
+
           {(propertyId || granularity !== "MONTH") && (
             <button
               onClick={clearAllFilters}
@@ -558,6 +735,70 @@ export default function FinancialReportsPage() {
               Clear
             </button>
           )}
+        </div>
+
+        {/* Quick Period Presets */}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            onClick={() => {
+              const now = new Date();
+              const lastMonth = new Date(
+                now.getFullYear(),
+                now.getMonth() - 1,
+                1
+              );
+              updateSearchParams({
+                from: lastMonth.toISOString().split("T")[0],
+                to: now.toISOString().split("T")[0],
+              });
+            }}
+            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+          >
+            Last Month
+          </button>
+          <button
+            onClick={() => {
+              const now = new Date();
+              const lastQuarter = new Date(
+                now.getFullYear(),
+                now.getMonth() - 3,
+                1
+              );
+              updateSearchParams({
+                from: lastQuarter.toISOString().split("T")[0],
+                to: now.toISOString().split("T")[0],
+              });
+            }}
+            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+          >
+            Last Quarter
+          </button>
+          <button
+            onClick={() => {
+              const now = new Date();
+              const lastYear = new Date(now.getFullYear() - 1, 0, 1);
+              updateSearchParams({
+                from: lastYear.toISOString().split("T")[0],
+                to: now.toISOString().split("T")[0],
+              });
+            }}
+            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+          >
+            Last Year
+          </button>
+          <button
+            onClick={() => {
+              const now = new Date();
+              const thisYear = new Date(now.getFullYear(), 0, 1);
+              updateSearchParams({
+                from: thisYear.toISOString().split("T")[0],
+                to: now.toISOString().split("T")[0],
+              });
+            }}
+            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+          >
+            This Year
+          </button>
         </div>
 
         {/* Active Filters Display */}
@@ -789,7 +1030,7 @@ export default function FinancialReportsPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {financialData.series?.map((item) => (
-                <tr key={item.propertyId} className="hover:bg-gray-50">
+                <tr key={item.period} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <Building className="text-gray-400 mr-2" size={16} />
@@ -800,19 +1041,17 @@ export default function FinancialReportsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {formatPeriodLabel(from, granularity)}
+                      {formatPeriodLabel(item.period, granularity)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {formatCurrency(item.revenue, item.currency)}
+                      {formatCurrency(item.revenue, "USD")}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {item.profit
-                        ? formatCurrency(item.profit, item.currency)
-                        : "N/A"}
+                      {item.profit ? formatCurrency(item.profit, "USD") : "N/A"}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -836,7 +1075,7 @@ export default function FinancialReportsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {item.invoices.paid}/{item.invoices.total}
+                      {item.invoiceCount}
                     </div>
                   </td>
                 </tr>

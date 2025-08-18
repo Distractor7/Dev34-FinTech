@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Bell } from "lucide-react";
 import { auth } from "@/services/firebaseConfig";
+import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 
 export default function Topbar() {
   const [time, setTime] = useState(new Date());
   const router = useRouter();
+  const { userProfile } = useAuth();
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 1000);
@@ -25,13 +27,19 @@ export default function Topbar() {
   const amPm = time.getHours() >= 12 ? "PM" : "AM";
 
   const handleLogout = async () => {
-    await auth.signOut();
-    router.push("/");
+    try {
+      await auth.signOut();
+      router.push("/");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   return (
     <div className="flex items-center justify-between px-6 py-4 border-b bg-white shadow-sm">
-      <h1 className="text-xl font-semibold text-gray-800">Welcome, Jordan</h1>
+      <h1 className="text-xl font-semibold text-gray-800">
+        Welcome, {userProfile?.firstName || "User"}
+      </h1>
       <div className="flex items-center space-x-6">
         <Link
           href="/dashboard/notifications"
