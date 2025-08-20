@@ -136,6 +136,357 @@ export class InvoiceService {
   }
 
   /**
+   * Clear all sample invoices (for testing purposes)
+   */
+  static async clearAllSampleInvoices(): Promise<void> {
+    try {
+      console.log("🧹 Clearing all sample invoices...");
+
+      const invoices = await this.getInvoices();
+
+      if (invoices.length === 0) {
+        console.log("No invoices to clear");
+        return;
+      }
+
+      const batch = writeBatch(db);
+
+      invoices.forEach((invoice) => {
+        const docRef = doc(db, this.COLLECTION_NAME, invoice.id);
+        batch.delete(docRef);
+      });
+
+      await batch.commit();
+      console.log(`✅ Successfully cleared ${invoices.length} invoices`);
+
+      // Show success message
+      alert(
+        `✅ Cleared ${invoices.length} invoices! Refresh the page to see the changes.`
+      );
+    } catch (error) {
+      console.error("❌ Error clearing invoices:", error);
+      alert("❌ Error clearing invoices. Check console for details.");
+    }
+  }
+
+  /**
+   * Seed sample invoices with random, realistic data for testing
+   */
+  static async seedSampleInvoices(): Promise<void> {
+    try {
+      console.log("🌱 Seeding sample invoices with random data...");
+
+      // Check if we already have sample invoices
+      const existingInvoices = await this.getInvoices();
+      if (existingInvoices.length > 5) {
+        console.log("Sample invoices already exist, skipping seed");
+        return;
+      }
+
+      // Sample data for realistic invoices
+      const sampleData = [
+        {
+          invoiceNumber: "INV-2024-001",
+          propertyId: "sample-property-1", // Fixed: was "prop_kny_mall"
+          providerId: "sample-provider-1", // Fixed: was "prov_parking_plus"
+          description: "Monthly parking maintenance and security services",
+          issueDate: new Date(
+            Date.now() - 30 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          dueDate: new Date(
+            Date.now() - 15 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          status: "paid" as const,
+          subtotal: 1250.0,
+          tax: 125.0,
+          total: 1375.0,
+          lineItems: [
+            {
+              description: "Parking lot cleaning",
+              quantity: 1,
+              unitPrice: 500.0,
+              total: 500.0,
+            },
+            {
+              description: "Security monitoring",
+              quantity: 30,
+              unitPrice: 25.0,
+              total: 750.0,
+            },
+          ],
+          notes: "Services provided for January 2024",
+          paidDate: new Date(
+            Date.now() - 20 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          createdBy: "system",
+          updatedBy: "system",
+        },
+        {
+          invoiceNumber: "INV-2024-002",
+          propertyId: "sample-property-1", // Fixed: was "prop_kny_mall"
+          providerId: "sample-provider-1", // Fixed: was "prov_clean_pro"
+          description: "Deep cleaning and sanitization services",
+          issueDate: new Date(
+            Date.now() - 25 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          dueDate: new Date(
+            Date.now() - 10 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          status: "paid" as const,
+          subtotal: 800.0,
+          tax: 80.0,
+          total: 880.0,
+          lineItems: [
+            {
+              description: "Deep cleaning service",
+              quantity: 1,
+              unitPrice: 600.0,
+              total: 600.0,
+            },
+            {
+              description: "Sanitization supplies",
+              quantity: 1,
+              unitPrice: 200.0,
+              total: 200.0,
+            },
+          ],
+          notes: "Monthly deep cleaning service",
+          paidDate: new Date(
+            Date.now() - 18 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          createdBy: "system",
+          updatedBy: "system",
+        },
+        {
+          invoiceNumber: "INV-2024-003",
+          propertyId: "sample-property-2", // Fixed: was "prop_retail_center"
+          providerId: "sample-provider-2", // Fixed: was "prov_maintain_tech"
+          description: "HVAC maintenance and electrical repairs",
+          issueDate: new Date(
+            Date.now() - 20 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          status: "sent" as const,
+          subtotal: 1500.0,
+          tax: 150.0,
+          total: 1650.0,
+          lineItems: [
+            {
+              description: "HVAC system maintenance",
+              quantity: 1,
+              unitPrice: 800.0,
+              total: 800.0,
+            },
+            {
+              description: "Electrical repairs",
+              quantity: 1,
+              unitPrice: 700.0,
+              total: 700.0,
+            },
+          ],
+          notes: "Emergency repair services",
+          createdBy: "system",
+          updatedBy: "system",
+        },
+        {
+          invoiceNumber: "INV-2024-004",
+          propertyId: "sample-property-2", // Fixed: was "prop_retail_center"
+          providerId: "sample-provider-3", // Fixed: was "prov_green_scape"
+          description: "Landscaping and garden maintenance",
+          issueDate: new Date(
+            Date.now() - 15 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+          status: "draft" as const,
+          subtotal: 450.0,
+          tax: 45.0,
+          total: 495.0,
+          lineItems: [
+            {
+              description: "Garden maintenance",
+              quantity: 1,
+              unitPrice: 300.0,
+              total: 300.0,
+            },
+            {
+              description: "Plant replacement",
+              quantity: 1,
+              unitPrice: 150.0,
+              total: 150.0,
+            },
+          ],
+          notes: "Monthly landscaping service",
+          createdBy: "system",
+          updatedBy: "system",
+        },
+        {
+          invoiceNumber: "INV-2024-005",
+          propertyId: "sample-property-1", // Fixed: was "prop_office_building"
+          providerId: "sample-provider-1", // Fixed: was "prov_clean_pro"
+          description: "Office cleaning and maintenance services",
+          issueDate: new Date(
+            Date.now() - 10 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          dueDate: new Date(
+            Date.now() + 20 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          status: "overdue" as const,
+          subtotal: 1200.0,
+          tax: 120.0,
+          total: 1320.0,
+          lineItems: [
+            {
+              description: "Daily office cleaning",
+              quantity: 20,
+              unitPrice: 40.0,
+              total: 800.0,
+            },
+            {
+              description: "Window cleaning",
+              quantity: 1,
+              unitPrice: 400.0,
+              total: 400.0,
+            },
+          ],
+          notes: "Monthly office maintenance package",
+          createdBy: "system",
+          updatedBy: "system",
+        },
+        {
+          invoiceNumber: "INV-2024-006",
+          propertyId: "sample-property-1", // Fixed: was "prop_office_building"
+          providerId: "sample-provider-2", // Fixed: was "prov_maintain_tech"
+          description: "Plumbing and water system maintenance",
+          issueDate: new Date(
+            Date.now() - 8 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          dueDate: new Date(
+            Date.now() + 22 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          status: "sent" as const,
+          subtotal: 650.0,
+          tax: 65.0,
+          total: 715.0,
+          lineItems: [
+            {
+              description: "Plumbing inspection",
+              quantity: 1,
+              unitPrice: 200.0,
+              total: 200.0,
+            },
+            {
+              description: "Water system maintenance",
+              quantity: 1,
+              unitPrice: 450.0,
+              total: 450.0,
+            },
+          ],
+          notes: "Quarterly plumbing maintenance",
+          createdBy: "system",
+          updatedBy: "system",
+        },
+        {
+          invoiceNumber: "INV-2024-007",
+          propertyId: "sample-property-2", // Fixed: was "prop_warehouse"
+          providerId: "sample-provider-2", // Fixed: was "prov_security_plus"
+          description: "Security system installation and monitoring",
+          issueDate: new Date(
+            Date.now() - 5 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          dueDate: new Date(
+            Date.now() + 25 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          status: "draft" as const,
+          subtotal: 2500.0,
+          tax: 250.0,
+          total: 2750.0,
+          lineItems: [
+            {
+              description: "Security camera installation",
+              quantity: 1,
+              unitPrice: 1200.0,
+              total: 1200.0,
+            },
+            {
+              description: "Monitoring system setup",
+              quantity: 1,
+              unitPrice: 800.0,
+              total: 800.0,
+            },
+            {
+              description: "Monthly monitoring fee",
+              quantity: 1,
+              unitPrice: 500.0,
+              total: 500.0,
+            },
+          ],
+          notes: "New security system installation",
+          createdBy: "system",
+          updatedBy: "system",
+        },
+        {
+          invoiceNumber: "INV-2024-008",
+          propertyId: "sample-property-2", // Fixed: was "prop_warehouse"
+          providerId: "sample-provider-1", // Fixed: was "prov_clean_pro"
+          description: "Industrial cleaning and waste disposal",
+          issueDate: new Date(
+            Date.now() - 3 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          dueDate: new Date(
+            Date.now() + 27 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          status: "sent" as const,
+          subtotal: 1800.0,
+          tax: 180.0,
+          total: 1980.0,
+          lineItems: [
+            {
+              description: "Industrial cleaning service",
+              quantity: 1,
+              unitPrice: 1200.0,
+              total: 1200.0,
+            },
+            {
+              description: "Waste disposal",
+              quantity: 1,
+              unitPrice: 600.0,
+              total: 600.0,
+            },
+          ],
+          notes: "Monthly industrial cleaning service",
+          createdBy: "system",
+          updatedBy: "system",
+        },
+      ];
+
+      // Add invoices to Firestore
+      const batch = writeBatch(db);
+
+      sampleData.forEach((invoiceData) => {
+        const docRef = doc(collection(db, this.COLLECTION_NAME));
+        batch.set(docRef, {
+          ...invoiceData,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      });
+
+      await batch.commit();
+      console.log(
+        `✅ Successfully seeded ${sampleData.length} sample invoices`
+      );
+
+      // Show success message
+      alert(
+        `✅ Created ${sampleData.length} sample invoices! Refresh the page to see them.`
+      );
+    } catch (error) {
+      console.error("❌ Error seeding sample invoices:", error);
+      alert("❌ Error creating sample invoices. Check console for details.");
+    }
+  }
+
+  /**
    * Create a new invoice with security validation
    */
   static async createInvoice(

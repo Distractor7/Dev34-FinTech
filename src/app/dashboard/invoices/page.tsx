@@ -146,10 +146,32 @@ export default function InvoicesPage() {
           <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
           <p className="text-gray-600 mt-2">Manage your invoices and billing</p>
         </div>
-        <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <Plus size={16} className="mr-2" />
-          Create Invoice
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => InvoiceService.seedSampleInvoices()}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            🌱 Seed Sample Data
+          </button>
+          <button
+            onClick={() => {
+              if (
+                confirm(
+                  "Are you sure you want to clear all invoices? This action cannot be undone."
+                )
+              ) {
+                InvoiceService.clearAllSampleInvoices();
+              }
+            }}
+            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            🗑️ Clear All
+          </button>
+          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <Plus size={16} className="mr-2" />
+            Create Invoice
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
