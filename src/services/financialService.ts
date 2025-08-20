@@ -946,7 +946,7 @@ export class FinancialService {
   }
 
   /**
-   * Get invoices within a date range
+   * Get invoices within a specific date range
    */
   private static async getInvoicesInDateRange(
     fromDate: string,
@@ -955,29 +955,58 @@ export class FinancialService {
     try {
       console.log("🔍 Fetching invoices in date range:", { fromDate, toDate });
 
+      // Validate input dates
+      if (!fromDate || !toDate) {
+        console.warn("Invalid date inputs:", { fromDate, toDate });
+        return [];
+      }
+
       // Handle different date formats properly
       let fromTimestamp: Timestamp;
       let toTimestamp: Timestamp;
 
-      // Handle year-only format (e.g., "2024")
-      if (/^\d{4}$/.test(fromDate)) {
-        fromTimestamp = Timestamp.fromDate(new Date(parseInt(fromDate), 0, 1)); // January 1st of the year
-      } else {
-        fromTimestamp = Timestamp.fromDate(new Date(fromDate));
-      }
+      try {
+        // Handle year-only format (e.g., "2024")
+        if (/^\d{4}$/.test(fromDate)) {
+          fromTimestamp = Timestamp.fromDate(
+            new Date(parseInt(fromDate), 0, 1)
+          ); // January 1st of the year
+        } else {
+          const fromDateObj = new Date(fromDate);
+          if (isNaN(fromDateObj.getTime())) {
+            console.warn("Invalid from date:", fromDate);
+            return [];
+          }
+          fromTimestamp = Timestamp.fromDate(fromDateObj);
+        }
 
-      if (/^\d{4}$/.test(toDate)) {
-        toTimestamp = Timestamp.fromDate(
-          new Date(parseInt(toDate), 11, 31, 23, 59, 59)
-        ); // December 31st of the year
-      } else {
-        toTimestamp = Timestamp.fromDate(new Date(toDate));
-      }
+        if (/^\d{4}$/.test(toDate)) {
+          toTimestamp = Timestamp.fromDate(
+            new Date(parseInt(toDate), 11, 31, 23, 59, 59)
+          ); // December 31st of the year
+        } else {
+          const toDateObj = new Date(toDate);
+          if (isNaN(toDateObj.getTime())) {
+            console.warn("Invalid to date:", toDate);
+            return [];
+          }
+          toTimestamp = Timestamp.fromDate(toDateObj);
+        }
 
-      console.log("🔍 Converted timestamps:", {
-        fromTimestamp: fromTimestamp.toDate(),
-        toTimestamp: toTimestamp.toDate(),
-      });
+        // Ensure from date is before to date
+        if (fromTimestamp.toDate() > toTimestamp.toDate()) {
+          console.warn("From date is after to date, swapping dates");
+          [fromTimestamp, toTimestamp] = [toTimestamp, fromTimestamp];
+        }
+
+        console.log("🔍 Converted timestamps:", {
+          fromTimestamp: fromTimestamp.toDate(),
+          toTimestamp: toTimestamp.toDate(),
+        });
+      } catch (dateError) {
+        console.error("Error parsing dates:", dateError);
+        return [];
+      }
 
       const invoicesQuery = query(
         collection(db, this.INVOICES_COLLECTION),
@@ -1065,7 +1094,7 @@ export class FinancialService {
   }
 
   /**
-   * Convert date to period string based on granularity
+   * Convert a date to a period string based on granularity
    */
   private static getPeriodFromDate(
     dateInput: string | any, // Accept Firebase Timestamp or string
@@ -1087,13 +1116,20 @@ export class FinancialService {
       } else if (typeof dateInput === "string") {
         // It's a string date
         date = new Date(dateInput);
+      } else if (
+        dateInput &&
+        typeof dateInput === "object" &&
+        dateInput.toDate
+      ) {
+        // It's a Firestore Timestamp with toDate method
+        date = dateInput.toDate();
       } else {
         console.warn("Unknown date format:", dateInput);
         return "Invalid Date";
       }
 
       // Check if date is valid
-      if (isNaN(date.getTime())) {
+      if (!date || isNaN(date.getTime())) {
         console.warn("Invalid date after conversion:", dateInput);
         return "Invalid Date";
       }
@@ -1101,15 +1137,27 @@ export class FinancialService {
       switch (granularity) {
         case "WEEK":
           const weekNumber = this.getWeekNumber(date);
+          if (weekNumber < 1 || weekNumber > 53) {
+            console.warn("Invalid week number:", weekNumber, "for date:", date);
+            return "Invalid Date";
+          }
           return `${date.getFullYear()}-W${weekNumber
             .toString()
             .padStart(2, "0")}`;
         case "MONTH":
-          return `${date.getFullYear()}-${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, "0")}`;
+          const month = date.getMonth() + 1;
+          if (month < 1 || month > 12) {
+            console.warn("Invalid month:", month, "for date:", date);
+            return "Invalid Date";
+          }
+          return `${date.getFullYear()}-${month.toString().padStart(2, "0")}`;
         case "YEAR":
-          return date.getFullYear().toString();
+          const year = date.getFullYear();
+          if (year < 1900 || year > 2100) {
+            console.warn("Invalid year:", year, "for date:", date);
+            return "Invalid Date";
+          }
+          return year.toString();
         default:
           return date.toISOString().split("T")[0];
       }
