@@ -5,7 +5,7 @@ import {
   PropertyRankItem,
   PropertyFinancialAggregate,
 } from "@/types/float34";
-import { MockApi } from "./mock";
+import { InvoiceApi } from "./invoiceApi";
 
 export interface Float34Api {
   listProviders(params?: {
@@ -75,6 +75,6 @@ export interface Float34Api {
 }
 
 export function getApi(): Float34Api {
-  // For now, return mock API. Later this will switch to Firebase
-  return new MockApi();
+  // Now using real invoice data from Firebase instead of mock data
+  return new InvoiceApi();
 }

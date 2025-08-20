@@ -1420,7 +1420,7 @@ export default function AnalyticsPage() {
   const propertyId = searchParams.get("propertyId") || "";
   const providerId = searchParams.get("providerId") || "";
   const granularity = (searchParams.get("g") as PeriodGranularity) || "MONTH";
-  const from = searchParams.get("from") || "2024-01";
+  const from = searchParams.get("from") || ""; // Empty string means no date filter - show all data
 
   // Component state
   const [properties, setProperties] = useState<Property[]>([]);
@@ -1631,7 +1631,7 @@ export default function AnalyticsPage() {
             : providerId
             ? `In-depth analysis for ${selectedProvider?.name}`
             : "Comprehensive financial performance analysis across all properties and service providers"}{" "}
-          • {formatPeriodLabel(from, granularity)}
+          • {from ? formatPeriodLabel(from, granularity) : "All time data"}
         </p>
 
         {/* Smart Filter Suggestions */}
@@ -1879,7 +1879,7 @@ export default function AnalyticsPage() {
           <div>
             <span className="text-gray-600">Time Period:</span>
             <span className="ml-2 font-medium text-gray-900">
-              {formatPeriodLabel(from, granularity)}
+              {from ? formatPeriodLabel(from, granularity) : "All time"}
             </span>
           </div>
           <div>
@@ -2475,7 +2475,7 @@ export default function AnalyticsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {item.invoices.paid}/{item.invoices.total}
+                        {item.invoices?.paid || 0}/{item.invoices?.total || 0}
                       </div>
                     </td>
                   </tr>
