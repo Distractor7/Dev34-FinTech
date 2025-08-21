@@ -682,29 +682,51 @@ export class ServiceProviderService {
         }
       }
 
-      // Define the service providers that match your existing invoices
+      // Define the service providers with comprehensive schema
       const serviceProvidersData = [
         {
+          id: "prov_cleanpro_services",
           name: "CleanPro Services",
           email: "info@cleanpro.com",
           phone: "+1-555-0101",
           service: "Cleaning Services",
           status: "active" as const,
           rating: 4.8,
-          propertyIds: [],
+          propertyIds: [
+            "prop_flour_market",
+            "prop_cavendish_center",
+            "prop_knysna_mall",
+          ],
+
+          // Business Information
+          businessName: "CleanPro Services LLC",
+          taxId: "TAX-123456789",
+          businessAddress: {
+            street: "100 Cleaning Lane",
+            city: "Downtown",
+            state: "CA",
+            zipCode: "90210",
+            country: "USA",
+          },
+          businessLicense: "LIC-2024-001",
+          insuranceInfo: {
+            provider: "Secure Insurance Co",
+            policyNumber: "POL-2024-001",
+            expiryDate: "2025-12-31",
+            coverageAmount: 1000000,
+          },
+
+          // Service Details
           serviceCategories: [
             "General Cleaning",
             "Window Cleaning",
             "Deep Cleaning",
+            "Sanitization",
+            "Post-Construction Cleanup",
           ],
           serviceAreas: ["Downtown", "Midtown", "Uptown"],
-          businessName: "CleanPro Services LLC",
-          complianceStatus: {
-            backgroundCheck: true,
-            drugTest: true,
-            safetyTraining: true,
-            lastUpdated: new Date().toISOString(),
-          },
+
+          // Availability
           availability: {
             monday: { start: "08:00", end: "17:00" },
             tuesday: { start: "08:00", end: "17:00" },
@@ -714,28 +736,69 @@ export class ServiceProviderService {
             saturday: { start: "09:00", end: "15:00" },
             sunday: { start: null, end: null },
           },
+
+          // Financial Details
+          financialDetails: {
+            taxRate: 8.25,
+            currency: "USD",
+            paymentTerms: 30,
+          },
+
+          // Performance Metrics
+          performanceMetrics: {
+            responseTime: 2,
+            completionRate: 98,
+            customerSatisfaction: 4.8,
+            onTimeDelivery: 95,
+          },
+
+          // Compliance Status
+          complianceStatus: {
+            backgroundCheck: true,
+            drugTest: true,
+            safetyTraining: true,
+            lastUpdated: new Date().toISOString(),
+          },
         },
         {
+          id: "prov_fibernet_solutions",
           name: "FiberNet Solutions",
           email: "support@fibernet.com",
           phone: "+1-555-0102",
           service: "Internet Services",
           status: "active" as const,
           rating: 4.9,
-          propertyIds: [],
+          propertyIds: ["prop_cavendish_center", "prop_knysna_mall"],
+
+          // Business Information
+          businessName: "FiberNet Solutions Inc",
+          taxId: "TAX-987654321",
+          businessAddress: {
+            street: "200 Tech Drive",
+            city: "Midtown",
+            state: "CA",
+            zipCode: "90211",
+            country: "USA",
+          },
+          businessLicense: "LIC-2024-002",
+          insuranceInfo: {
+            provider: "Tech Insurance Co",
+            policyNumber: "POL-2024-002",
+            expiryDate: "2025-12-31",
+            coverageAmount: 2000000,
+          },
+
+          // Service Details
           serviceCategories: [
             "Fiber Installation",
             "Internet Service",
             "Network Maintenance",
+            "WiFi Setup",
+            "Security Systems",
           ],
           serviceAreas: ["Downtown", "Midtown", "Uptown"],
-          businessName: "FiberNet Solutions Inc",
-          complianceStatus: {
-            backgroundCheck: true,
-            drugTest: false,
-            safetyTraining: true,
-            lastUpdated: new Date().toISOString(),
-          },
+
+          // Availability
           availability: {
             monday: { start: "09:00", end: "18:00" },
             tuesday: { start: "09:00", end: "18:00" },
@@ -745,28 +808,69 @@ export class ServiceProviderService {
             saturday: { start: "10:00", end: "16:00" },
             sunday: { start: null, end: null },
           },
+
+          // Financial Details
+          financialDetails: {
+            taxRate: 8.25,
+            currency: "USD",
+            paymentTerms: 15,
+          },
+
+          // Performance Metrics
+          performanceMetrics: {
+            responseTime: 1,
+            completionRate: 99,
+            customerSatisfaction: 4.9,
+            onTimeDelivery: 98,
+          },
+
+          // Compliance Status
+          complianceStatus: {
+            backgroundCheck: true,
+            drugTest: false,
+            safetyTraining: true,
+            lastUpdated: new Date().toISOString(),
+          },
         },
         {
+          id: "prov_parking_plus",
           name: "Parking Plus Services",
           email: "info@parkingplus.com",
           phone: "+1-555-0103",
           service: "Parking Services",
           status: "active" as const,
           rating: 4.7,
-          propertyIds: [],
+          propertyIds: ["prop_flour_market", "prop_knysna_mall"],
+
+          // Business Information
+          businessName: "Parking Plus Services LLC",
+          taxId: "TAX-456789123",
+          businessAddress: {
+            street: "300 Parking Way",
+            city: "Uptown",
+            state: "CA",
+            zipCode: "90212",
+            country: "USA",
+          },
+          businessLicense: "LIC-2024-003",
+          insuranceInfo: {
+            provider: "Parking Insurance Co",
+            policyNumber: "POL-2024-003",
+            expiryDate: "2025-12-31",
+            coverageAmount: 1500000,
+          },
+
+          // Service Details
           serviceCategories: [
             "Parking Maintenance",
             "Security Services",
             "Lot Cleaning",
+            "Valet Services",
+            "Traffic Management",
           ],
           serviceAreas: ["Downtown", "Midtown", "Uptown"],
-          businessName: "Parking Plus Services LLC",
-          complianceStatus: {
-            backgroundCheck: true,
-            drugTest: true,
-            safetyTraining: true,
-            lastUpdated: new Date().toISOString(),
-          },
+
+          // Availability
           availability: {
             monday: { start: "08:00", end: "17:00" },
             tuesday: { start: "08:00", end: "17:00" },
@@ -775,6 +879,29 @@ export class ServiceProviderService {
             friday: { start: "08:00", end: "17:00" },
             saturday: { start: null, end: null },
             sunday: { start: null, end: null },
+          },
+
+          // Financial Details
+          financialDetails: {
+            taxRate: 8.25,
+            currency: "USD",
+            paymentTerms: 30,
+          },
+
+          // Performance Metrics
+          performanceMetrics: {
+            responseTime: 3,
+            completionRate: 96,
+            customerSatisfaction: 4.7,
+            onTimeDelivery: 92,
+          },
+
+          // Compliance Status
+          complianceStatus: {
+            backgroundCheck: true,
+            drugTest: true,
+            safetyTraining: true,
+            lastUpdated: new Date().toISOString(),
           },
         },
       ];
@@ -827,6 +954,66 @@ export class ServiceProviderService {
         success: false,
         count: 0,
         error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * Master seeding function - seeds properties, service providers, and invoices
+   * Call this function to ensure all data is consistent
+   */
+  static async seedAllData(): Promise<{
+    success: boolean;
+    propertiesCount: number;
+    providersCount: number;
+    invoicesCount: number;
+    error?: string;
+  }> {
+    try {
+      console.log("🌱 Starting master data seeding...");
+
+      // Import services
+      const { PropertyService } = await import("./propertyService");
+      const { InvoiceService } = await import("./invoiceService");
+
+      // Step 1: Seed properties first
+      console.log("🌱 Step 1: Seeding properties...");
+      const propertiesResult = await PropertyService.seedProperties();
+      if (!propertiesResult.success) {
+        throw new Error(`Failed to seed properties: ${propertiesResult.error}`);
+      }
+
+      // Step 2: Seed service providers
+      console.log("🌱 Step 2: Seeding service providers...");
+      const providersResult = await this.seedServiceProviders();
+      if (!providersResult.success) {
+        throw new Error(
+          `Failed to seed service providers: ${providersResult.error}`
+        );
+      }
+
+      // Step 3: Seed invoices
+      console.log("🌱 Step 3: Seeding invoices...");
+      const invoicesResult = await InvoiceService.seedSampleInvoices();
+      if (!invoicesResult.success) {
+        throw new Error(`Failed to seed invoices: ${invoicesResult.error}`);
+      }
+
+      console.log("✅ Master data seeding completed successfully!");
+      return {
+        success: true,
+        propertiesCount: propertiesResult.count,
+        providersCount: providersResult.count,
+        invoicesCount: invoicesResult.count,
+      };
+    } catch (error: any) {
+      console.error("❌ Error in master data seeding:", error);
+      return {
+        success: false,
+        propertiesCount: 0,
+        providersCount: 0,
+        invoicesCount: 0,
+        error: error.message,
       };
     }
   }

@@ -36,7 +36,7 @@ import {
   Bar,
 } from "recharts";
 import { Float34Api } from "@/lib/api";
-import { Invoice } from "@/services/invoiceService";
+import { Invoice } from "@/types/float34";
 import { ServiceProviderService } from "@/services/serviceProviderService";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -157,7 +157,13 @@ function PropertySelect({
   const filteredProperties = properties.filter(
     (property) =>
       property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      property.address?.toLowerCase().includes(searchTerm.toLowerCase())
+      property.address?.fullAddress
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      property.address?.street
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      property.address?.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleClear = () => {
@@ -220,7 +226,8 @@ function PropertySelect({
                   <div className="font-medium">{property.name}</div>
                   {property.address && (
                     <div className="text-xs text-gray-500 truncate">
-                      {property.address}
+                      {property.address.fullAddress ||
+                        `${property.address.street}, ${property.address.city}`}
                     </div>
                   )}
                 </button>
@@ -1554,6 +1561,34 @@ export default function AnalyticsPage() {
 
       console.log("🔍 Financial data received:", data);
       setFinancialData(data);
+
+      // Extract combined data for property-provider combinations
+      if (data.combinedData) {
+        setCombinedData(data.combinedData);
+        console.log("🔍 Combined data set:", data.combinedData);
+      } else {
+        setCombinedData([]);
+        console.log("🔍 No combined data in response");
+      }
+
+      // Debug: Log what we received for combined filtering
+      if (propertyId && providerId) {
+        console.log("🔍 Combined filter debug:");
+        console.log("🔍 - Property ID:", propertyId);
+        console.log("🔍 - Provider ID:", providerId);
+        console.log(
+          "🔍 - Combined data count:",
+          data.combinedData?.length || 0
+        );
+        console.log("🔍 - By property count:", data.byProperty?.length || 0);
+        console.log("🔍 - By provider count:", data.byProvider?.length || 0);
+
+        // Additional debugging
+        console.log("🔍 - Full financial data:", data);
+        console.log("🔍 - Properties in data:", data.byProperty);
+        console.log("🔍 - Providers in data:", data.byProvider);
+        console.log("🔍 - Combined data:", data.combinedData);
+      }
     } catch (error: any) {
       console.error("❌ Error fetching financial data:", error);
 
@@ -1691,6 +1726,38 @@ export default function AnalyticsPage() {
     }
   };
 
+  const handleSeedAllData = async () => {
+    try {
+      console.log("🌱 Seeding all data...");
+
+      const result = await ServiceProviderService.seedAllData();
+
+      if (result.success) {
+        alert(
+          `✅ Successfully seeded all data!\n` +
+            `Properties: ${result.propertiesCount}\n` +
+            `Service Providers: ${result.providersCount}\n` +
+            `Invoices: ${result.invoicesCount}\n\n` +
+            `Refreshing data...`
+        );
+
+        // Refresh all data
+        const props = await getApi().listProperties();
+        setProperties(props);
+
+        const provs = await getApi().listProviders();
+        setProviders(provs);
+
+        fetchData();
+      } else {
+        alert(`❌ Failed to seed all data: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error seeding all data:", error);
+      alert("❌ Error seeding all data. Check console for details.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -1780,6 +1847,12 @@ export default function AnalyticsPage() {
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               🌱 Seed Service Providers
+            </button>
+            <button
+              onClick={handleSeedAllData}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              🌱 Seed All Data
             </button>
           </div>
         </div>

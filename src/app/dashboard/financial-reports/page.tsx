@@ -20,6 +20,7 @@ import FinancialService, {
   PropertyFinancialData,
   FinancialTimeSeries,
 } from "@/services/financialService";
+import { PropertyService } from "@/services/propertyService";
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -183,9 +184,7 @@ export default function FinancialReportsPage() {
     setLoading(true);
     try {
       // Get properties from PropertyService
-      const PropertyService = await import("@/services/propertyService");
-      const propertiesData =
-        await PropertyService.PropertyService.getProperties();
+      const propertiesData = await PropertyService.getProperties({});
 
       // Get invoice data directly from InvoiceService (same as invoices page)
       const InvoiceService = await import("@/services/invoiceService");
@@ -395,8 +394,18 @@ export default function FinancialReportsPage() {
         <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
           <Calendar size={16} />
           <span>
-            Showing data for <span className="font-medium">all invoices</span>{" "}
-            in the system
+            {summary.revenue > 0 ? (
+              <>
+                Showing data for{" "}
+                <span className="font-medium">all invoices</span> in the system
+              </>
+            ) : (
+              <>
+                No invoices found in the database.{" "}
+                <span className="font-medium">Seed data first</span> to see
+                financial reports.
+              </>
+            )}
           </span>
         </div>
       </div>
@@ -534,6 +543,43 @@ export default function FinancialReportsPage() {
         </div>
       </div>
 
+      {/* Empty State - No Invoices */}
+      {!loading && byProperty.length === 0 && (
+        <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
+          <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            No Financial Data Available
+          </h3>
+          <p className="text-gray-600 mb-4">
+            There are no invoices in the database yet. To see financial reports:
+          </p>
+          <div className="space-y-2 text-sm text-gray-500">
+            <p>
+              • Use the "🌱 Seed All Data" button on the Analytics page to
+              create sample data
+            </p>
+            <p>• Or manually add invoices through the Invoices page</p>
+            <p>
+              • Make sure you have properties and service providers set up first
+            </p>
+          </div>
+          <div className="mt-6 flex justify-center gap-4">
+            <button
+              onClick={() => router.push("/dashboard/analytics")}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Go to Analytics
+            </button>
+            <button
+              onClick={() => router.push("/dashboard/invoices")}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Go to Invoices
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Trends Panel */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -549,19 +595,6 @@ export default function FinancialReportsPage() {
           </div>
         </div>
       </div>
-
-      {/* Empty State */}
-      {!loading && byProperty.length === 0 && (
-        <div className="text-center py-12">
-          <Building className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">
-            No financial data found
-          </h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Try another date range or clear the property filter.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
