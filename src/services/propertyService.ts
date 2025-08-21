@@ -570,4 +570,204 @@ export class PropertyService {
       };
     }
   }
+
+  /**
+   * Seed sample properties for development
+   */
+  static async seedProperties(): Promise<{
+    success: boolean;
+    count: number;
+    error?: string;
+  }> {
+    try {
+      console.log("🌱 Seeding properties with consistent data...");
+
+      // Check if we already have properties
+      const existingProperties = await this.getProperties();
+      if (existingProperties && existingProperties.length > 0) {
+        console.log("✅ Properties already exist, skipping seed");
+        return { success: true, count: existingProperties.length };
+      }
+
+      // Define properties with consistent IDs and comprehensive schema
+      const propertiesData = [
+        {
+          id: "prop_flour_market",
+          name: "The Flour Market",
+          address: {
+            street: "123 Main Street",
+            city: "Downtown",
+            state: "CA",
+            zipCode: "90210",
+            country: "USA",
+            fullAddress: "123 Main Street, Downtown, CA 90210",
+          },
+          status: "active" as const,
+          propertyType: "Retail",
+          squareFootage: 15000,
+          yearBuilt: 1995,
+          description:
+            "Historic retail building in downtown area with excellent foot traffic",
+          amenities: [
+            "Parking",
+            "Security",
+            "HVAC",
+            "Loading Dock",
+            "Storage Space",
+          ],
+          contactInfo: {
+            phone: "+1-555-0100",
+            email: "manager@flourmarket.com",
+            manager: "John Smith",
+            emergencyContact: "+1-555-9999",
+          },
+          financialInfo: {
+            purchasePrice: 2500000,
+            currentValue: 3200000,
+            monthlyRent: 25000,
+            propertyTax: 18000,
+            insurance: 12000,
+            monthlyExpenses: 8000,
+          },
+          location: {
+            latitude: 34.0522,
+            longitude: -118.2437,
+            timezone: "America/Los_Angeles",
+          },
+          metadata: {
+            tags: ["retail", "downtown", "historic", "high-traffic"],
+            features: ["parking", "security", "storage"],
+            restrictions: ["no-industrial", "business-hours-only"],
+          },
+        },
+        {
+          id: "prop_cavendish_center",
+          name: "Cavendish Center",
+          address: {
+            street: "456 Business Avenue",
+            city: "Midtown",
+            state: "CA",
+            zipCode: "90211",
+            country: "USA",
+            fullAddress: "456 Business Avenue, Midtown, CA 90211",
+          },
+          status: "active" as const,
+          propertyType: "Office",
+          squareFootage: 25000,
+          yearBuilt: 2005,
+          description:
+            "Modern office complex with premium amenities and professional atmosphere",
+          amenities: [
+            "Parking",
+            "Security",
+            "HVAC",
+            "Elevator",
+            "Conference Rooms",
+            "Break Room",
+            "Fitness Center",
+          ],
+          contactInfo: {
+            phone: "+1-555-0101",
+            email: "admin@cavendishcenter.com",
+            manager: "Sarah Johnson",
+            emergencyContact: "+1-555-9998",
+          },
+          financialInfo: {
+            purchasePrice: 4500000,
+            currentValue: 5800000,
+            monthlyRent: 45000,
+            propertyTax: 32000,
+            insurance: 18000,
+            monthlyExpenses: 12000,
+          },
+          location: {
+            latitude: 34.0622,
+            longitude: -118.2537,
+            timezone: "America/Los_Angeles",
+          },
+          metadata: {
+            tags: ["office", "midtown", "modern", "premium"],
+            features: ["conference-rooms", "fitness-center", "elevator"],
+            restrictions: ["business-only", "no-residential"],
+          },
+        },
+        {
+          id: "prop_knysna_mall",
+          name: "Knysna Mall",
+          address: {
+            street: "789 Shopping Boulevard",
+            city: "Uptown",
+            state: "CA",
+            zipCode: "90212",
+            country: "USA",
+            fullAddress: "789 Shopping Boulevard, Uptown, CA 90212",
+          },
+          status: "active" as const,
+          propertyType: "Shopping Center",
+          squareFootage: 35000,
+          yearBuilt: 2010,
+          description:
+            "Large shopping mall with multiple retail spaces and entertainment options",
+          amenities: [
+            "Parking",
+            "Security",
+            "HVAC",
+            "Food Court",
+            "Entertainment",
+            "Loading Zones",
+            "Customer Service",
+          ],
+          contactInfo: {
+            phone: "+1-555-0102",
+            email: "management@knysnamall.com",
+            manager: "Mike Davis",
+            emergencyContact: "+1-555-9997",
+          },
+          financialInfo: {
+            purchasePrice: 6500000,
+            currentValue: 8200000,
+            monthlyRent: 65000,
+            propertyTax: 48000,
+            insurance: 25000,
+            monthlyExpenses: 18000,
+          },
+          location: {
+            latitude: 34.0722,
+            longitude: -118.2637,
+            timezone: "America/Los_Angeles",
+          },
+          metadata: {
+            tags: ["shopping", "uptown", "entertainment", "high-traffic"],
+            features: ["food-court", "entertainment", "parking"],
+            restrictions: ["retail-only", "no-industrial"],
+          },
+        },
+      ];
+
+      // Create properties
+      const batch = writeBatch(db);
+      const createdProperties = [];
+
+      for (const propertyData of propertiesData) {
+        const { id, ...data } = propertyData;
+        const docRef = doc(db, this.COLLECTION_NAME, id);
+        batch.set(docRef, {
+          ...data,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdBy: "system",
+          updatedBy: "system",
+        });
+        createdProperties.push(id);
+      }
+
+      await batch.commit();
+      console.log("✅ Successfully seeded properties:", createdProperties);
+
+      return { success: true, count: createdProperties.length };
+    } catch (error) {
+      console.error("❌ Error seeding properties:", error);
+      return { success: false, error: error.message };
+    }
+  }
 }

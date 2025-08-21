@@ -3,7 +3,7 @@ import { PeriodGranularity } from "@/types/float34";
 import { InvoiceService } from "@/services/invoiceService";
 import { PropertyService } from "@/services/propertyService";
 import { ServiceProviderService } from "@/services/serviceProviderService";
-import { Invoice } from "@/services/invoiceService";
+import { Invoice } from "@/types/float34";
 
 export class InvoiceApi implements Float34Api {
   /**
@@ -46,7 +46,7 @@ export class InvoiceApi implements Float34Api {
    */
   async listProperties(): Promise<any[]> {
     try {
-      return await PropertyService.getProperties();
+      return await PropertyService.getPropertiesWithFilters({});
     } catch (error) {
       console.error("Error fetching properties:", error);
       return [];
@@ -99,7 +99,7 @@ export class InvoiceApi implements Float34Api {
 
       // Get properties and providers for reference and enrichment
       const [properties, providersResponse] = await Promise.all([
-        PropertyService.getProperties(),
+        PropertyService.getPropertiesWithFilters({}),
         ServiceProviderService.getProviders(),
       ]);
       const propertiesList = properties || [];
@@ -244,7 +244,7 @@ export class InvoiceApi implements Float34Api {
 
       // Get properties and providers for reference and enrichment
       const [properties, providersResponse] = await Promise.all([
-        PropertyService.getProperties(),
+        PropertyService.getPropertiesWithFilters({}),
         ServiceProviderService.getProviders(),
       ]);
       const propertiesList = properties || [];
@@ -404,17 +404,19 @@ export class InvoiceApi implements Float34Api {
         );
       }
 
-      // Get properties and providers for reference
-      const [propertiesResponse, providersResponse] = await Promise.all([
-        PropertyService.getProperties(),
+      // Get properties and providers for reference and enrichment
+      const [properties, providersResponse] = await Promise.all([
+        PropertyService.getPropertiesWithFilters({}),
         ServiceProviderService.getProviders(),
       ]);
-      const properties = propertiesResponse || [];
+      const propertiesList = properties || [];
       const providers = providersResponse?.providers || []; // Extract the providers array with fallback
 
       // Enrich invoices with names for better analytics
       const enrichedInvoices = filteredInvoices.map((invoice) => {
-        const property = properties.find((p) => p.id === invoice.propertyId);
+        const property = propertiesList.find(
+          (p) => p.id === invoice.propertyId
+        );
         const provider = providers.find((p) => p.id === invoice.providerId);
         return {
           ...invoice,
@@ -439,7 +441,7 @@ export class InvoiceApi implements Float34Api {
       );
 
       // Calculate by property
-      const byProperty = properties
+      const byProperty = propertiesList
         .map((property) => {
           const propertyInvoices = enrichedInvoices.filter(
             (invoice) => invoice.propertyId === property.id
@@ -512,51 +514,95 @@ export class InvoiceApi implements Float34Api {
         .sort((a, b) => (b?.revenue || 0) - (a?.revenue || 0));
 
       // Generate combined data (property + provider combinations)
-      const combinedData = properties
-        .flatMap((property) => {
-          return providers
-            .map((provider) => {
-              const combinedInvoices = enrichedInvoices.filter(
-                (invoice) =>
-                  invoice.propertyId === property.id &&
-                  invoice.providerId === provider.id
-              );
+      let combinedData: any[] = [];
 
-              if (combinedInvoices.length === 0) return null;
+      if (propertyId && providerId) {
+        // When both filters are specified, return only the specific combination
+        const combinedInvoices = enrichedInvoices.filter(
+          (invoice) =>
+            invoice.propertyId === propertyId &&
+            invoice.providerId === providerId
+        );
 
-              const combinedRevenue = combinedInvoices.reduce(
-                (sum, invoice) => sum + invoice.total,
-                0
-              );
-              const combinedPaidInvoices = combinedInvoices.filter(
-                (invoice) => invoice.status === "paid"
-              );
-              const combinedPaidAmount = combinedPaidInvoices.reduce(
-                (sum, invoice) => sum + invoice.total,
-                0
-              );
+        if (combinedInvoices.length > 0) {
+          const combinedRevenue = combinedInvoices.reduce(
+            (sum, invoice) => sum + invoice.total,
+            0
+          );
+          const combinedPaidInvoices = combinedInvoices.filter(
+            (invoice) => invoice.status === "paid"
+          );
+          const combinedPaidAmount = combinedPaidInvoices.reduce(
+            (sum, invoice) => sum + invoice.total,
+            0
+          );
 
-              return {
-                propertyName: property.name,
-                providerName: provider.name,
-                revenue: combinedRevenue,
-                profit: combinedRevenue * 0.7,
-                marginPct: 70.0,
-                invoicesPaidPct:
-                  combinedRevenue > 0
-                    ? (combinedPaidAmount / combinedRevenue) * 100
-                    : 0,
-              };
-            })
-            .filter((item): item is NonNullable<typeof item> => item !== null);
-        })
-        .sort((a, b) => b.revenue - a.revenue);
+          combinedData = [
+            {
+              propertyName:
+                propertiesList.find((p) => p.id === propertyId)?.name ||
+                "Unknown Property",
+              providerName:
+                providers.find((p) => p.id === providerId)?.name ||
+                "Unknown Provider",
+              revenue: combinedRevenue,
+              profit: combinedRevenue * 0.7,
+              marginPct: 70.0,
+              invoicesPaidPct:
+                combinedRevenue > 0
+                  ? (combinedPaidAmount / combinedRevenue) * 100
+                  : 0,
+            },
+          ];
+        }
+      } else {
+        // When only one or no filter is specified, return all combinations
+        combinedData = propertiesList
+          .flatMap((property) => {
+            return providers
+              .map((provider) => {
+                const combinedInvoices = enrichedInvoices.filter(
+                  (invoice) =>
+                    invoice.propertyId === property.id &&
+                    invoice.providerId === provider.id
+                );
+
+                if (combinedInvoices.length === 0) return null;
+
+                const combinedRevenue = combinedInvoices.reduce(
+                  (sum, invoice) => sum + invoice.total,
+                  0
+                );
+                const combinedPaidInvoices = combinedInvoices.filter(
+                  (invoice) => invoice.status === "paid"
+                );
+                const combinedPaidAmount = combinedPaidInvoices.reduce(
+                  (sum, invoice) => sum + invoice.total,
+                  0
+                );
+
+                return {
+                  propertyName: property.name,
+                  providerName: provider.name,
+                  revenue: combinedRevenue,
+                  profit: combinedRevenue * 0.7,
+                  marginPct: 70.0,
+                  invoicesPaidPct:
+                    combinedRevenue > 0
+                      ? (combinedPaidAmount / combinedRevenue) * 100
+                      : 0,
+                };
+              })
+              .filter(Boolean);
+          })
+          .filter(Boolean);
+      }
 
       // Generate time series data
       const series = this.generateTimeSeriesData(
         enrichedInvoices,
         granularity,
-        properties
+        propertiesList
       );
 
       return {

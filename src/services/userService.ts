@@ -26,6 +26,8 @@ export interface UserProfile {
   providerId?: string;
   // Property manager specific fields
   managedProperties?: string[];
+  // Access control
+  accessiblePropertyIds?: string[];
 }
 
 export class UserService {

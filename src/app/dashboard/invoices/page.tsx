@@ -15,7 +15,7 @@ import {
   User,
 } from "lucide-react";
 import { InvoiceService } from "../../../services/invoiceService";
-import { Invoice } from "../../../services/invoiceService";
+import { Invoice } from "../../../types/float34";
 import { PropertyService } from "../../../services/propertyService";
 import { ServiceProviderService } from "../../../services/serviceProviderService";
 import InvoiceDetailModal from "../../../components/InvoiceDetailModal";
@@ -63,7 +63,22 @@ export default function InvoicesPage() {
       ]);
 
       setInvoices(invoicesData);
-      setStats(statsData);
+
+      // Transform stats data to match expected state structure
+      const transformedStats = {
+        total: statsData.totalInvoices,
+        draft: statsData.draftCount,
+        sent: statsData.sentCount,
+        paid: statsData.paidCount,
+        overdue: statsData.overdueCount,
+        cancelled: 0, // Not tracked in current stats
+        totalAmount: statsData.totalAmount,
+        paidAmount: statsData.paidAmount,
+        pendingAmount: statsData.sentAmount + statsData.draftAmount,
+        overdueAmount: statsData.overdueAmount,
+      };
+
+      setStats(transformedStats);
     } catch (error) {
       console.error("Error fetching invoices:", error);
     } finally {
@@ -73,7 +88,7 @@ export default function InvoicesPage() {
 
   const fetchProperties = async () => {
     try {
-      const propertiesData = await PropertyService.getProperties();
+      const propertiesData = await PropertyService.getPropertiesWithFilters({});
       setProperties(propertiesData || []);
     } catch (error) {
       console.error("Error fetching properties:", error);
@@ -176,7 +191,7 @@ export default function InvoicesPage() {
         "Are you sure you want to seed comprehensive test data? This will overwrite existing data and add many sample invoices."
       )
     ) {
-      await InvoiceService.seedComprehensiveTestData();
+      await InvoiceService.seedSampleInvoices();
       alert("Comprehensive test data seeded successfully!");
       fetchInvoices(); // Refresh data
     }
@@ -198,7 +213,7 @@ export default function InvoicesPage() {
         console.log("🔑 Starting admin access setup...");
 
         // First, let's check what properties exist
-        const properties = await PropertyService.getProperties();
+        const properties = await PropertyService.getPropertiesWithFilters({});
         console.log("🏢 Available properties:", properties);
 
         // Get current user from auth context
@@ -268,8 +283,8 @@ export default function InvoicesPage() {
             🌱 Seed Test Data
           </button>
           <button
-            onClick={handleSeedSampleInvoices}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => InvoiceService.seedSampleInvoices()}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
             + Add Invoice
           </button>

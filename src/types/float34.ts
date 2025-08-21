@@ -1,11 +1,49 @@
 export type Property = {
   id: string;
-  tenantId: string;
+  tenantId?: string;
   name: string;
-  address?: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+    fullAddress: string;
+  };
   status: "active" | "inactive";
+  propertyType: string;
+  squareFootage: number;
+  yearBuilt: number;
+  description: string;
+  amenities: string[];
+  contactInfo: {
+    phone: string;
+    email: string;
+    manager: string;
+    emergencyContact: string;
+  };
+  financialInfo: {
+    purchasePrice: number;
+    currentValue: number;
+    monthlyRent: number;
+    propertyTax: number;
+    insurance: number;
+    monthlyExpenses: number;
+  };
+  location: {
+    latitude: number;
+    longitude: number;
+    timezone: string;
+  };
+  metadata: {
+    tags: string[];
+    features: string[];
+    restrictions: string[];
+  };
   createdAt: string;
   updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
 };
 
 export type Provider = {
@@ -19,7 +57,7 @@ export type Provider = {
   propertyIds: string[]; // IDs of properties where they operate
 
   // Business Information
-  businessName?: string;
+  businessName: string;
   taxId?: string;
   businessAddress?: {
     street: string;
@@ -40,13 +78,13 @@ export type Provider = {
   serviceCategories: string[];
   serviceAreas: string[]; // Geographic areas served
   availability: {
-    monday: { start: string; end: string; available: boolean };
-    tuesday: { start: string; end: string; available: boolean };
-    wednesday: { start: string; end: string; available: boolean };
-    thursday: { start: string; end: string; available: boolean };
-    friday: { start: string; end: string; available: boolean };
-    saturday: { start: string; end: string; available: boolean };
-    sunday: { start: string; end: string; available: boolean };
+    monday: { start: string | null; end: string | null };
+    tuesday: { start: string | null; end: string | null };
+    wednesday: { start: string | null; end: string | null };
+    thursday: { start: string | null; end: string | null };
+    friday: { start: string | null; end: string | null };
+    saturday: { start: string | null; end: string | null };
+    sunday: { start: string | null; end: string | null };
   };
 
   // API & Integration Details
@@ -99,13 +137,8 @@ export type Provider = {
   // Timestamps
   createdAt: string;
   updatedAt: string;
-  lastActive: string;
-
-  // Metadata
-  tags: string[];
-  notes?: string;
-  createdBy: string; // User ID who created this provider
-  updatedBy: string; // User ID who last updated this provider
+  createdBy: string;
+  updatedBy: string;
 };
 
 // New types for service provider management
@@ -193,4 +226,67 @@ export type PropertyRankItem = {
   profit?: number;
   marginPct?: number;
   invoicesPaidPct?: number;
+};
+
+export type Invoice = {
+  id: string;
+  invoiceNumber: string;
+  propertyId: string; // Links to Property.id
+  providerId: string; // Links to Provider.id
+
+  // Invoice Details
+  description: string;
+  issueDate: string;
+  dueDate: string;
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
+
+  // Financial Information
+  subtotal: number;
+  tax: number;
+  total: number;
+  currency: string;
+
+  // Line Items
+  lineItems: {
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+    category?: string;
+    notes?: string;
+  }[];
+
+  // Additional Information
+  notes?: string;
+  terms?: string;
+  paymentInstructions?: string;
+
+  // Payment Tracking
+  paidDate?: string;
+  paymentMethod?: string;
+  paymentReference?: string;
+
+  // Audit Trail
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy: string;
+
+  // Metadata for Searchability
+  tags?: string[];
+  category?: string;
+  priority?: "low" | "medium" | "high";
+
+  // Approval Workflow
+  approvedBy?: string;
+  approvedAt?: string;
+  approvalNotes?: string;
+
+  // Document Attachments
+  attachments?: {
+    filename: string;
+    url: string;
+    type: string;
+    uploadedAt: string;
+  }[];
 };

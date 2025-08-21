@@ -11,7 +11,7 @@ import {
   Calendar,
   DollarSign,
 } from "lucide-react";
-import { Invoice, InvoiceLineItem } from "../services/invoiceService";
+import { Invoice, InvoiceLineItem } from "../types/float34";
 
 interface InvoiceDetailModalProps {
   invoice: Invoice | null;

@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { Property, Provider } from "@/types/float34";
-import { Invoice } from "./invoiceService";
+import { Invoice } from "../types/float34";
 
 export interface FinancialSummary {
   revenue: number;
