@@ -88,7 +88,7 @@ export default function InvoicesPage() {
 
   const fetchProperties = async () => {
     try {
-      const propertiesData = await PropertyService.getPropertiesWithFilters({});
+      const propertiesData = await PropertyService.getProperties({});
       setProperties(propertiesData || []);
     } catch (error) {
       console.error("Error fetching properties:", error);
@@ -213,7 +213,7 @@ export default function InvoicesPage() {
         console.log("🔑 Starting admin access setup...");
 
         // First, let's check what properties exist
-        const properties = await PropertyService.getPropertiesWithFilters({});
+        const properties = await PropertyService.getProperties({});
         console.log("🏢 Available properties:", properties);
 
         // Get current user from auth context

@@ -46,7 +46,7 @@ export class InvoiceApi implements Float34Api {
    */
   async listProperties(): Promise<any[]> {
     try {
-      return await PropertyService.getPropertiesWithFilters({});
+      return await PropertyService.getProperties({});
     } catch (error) {
       console.error("Error fetching properties:", error);
       return [];
@@ -99,7 +99,7 @@ export class InvoiceApi implements Float34Api {
 
       // Get properties and providers for reference and enrichment
       const [properties, providersResponse] = await Promise.all([
-        PropertyService.getPropertiesWithFilters({}),
+        PropertyService.getProperties({}),
         ServiceProviderService.getProviders(),
       ]);
       const propertiesList = properties || [];
@@ -244,7 +244,7 @@ export class InvoiceApi implements Float34Api {
 
       // Get properties and providers for reference and enrichment
       const [properties, providersResponse] = await Promise.all([
-        PropertyService.getPropertiesWithFilters({}),
+        PropertyService.getProperties({}),
         ServiceProviderService.getProviders(),
       ]);
       const propertiesList = properties || [];
@@ -406,7 +406,7 @@ export class InvoiceApi implements Float34Api {
 
       // Get properties and providers for reference and enrichment
       const [properties, providersResponse] = await Promise.all([
-        PropertyService.getPropertiesWithFilters({}),
+        PropertyService.getProperties({}),
         ServiceProviderService.getProviders(),
       ]);
       const propertiesList = properties || [];

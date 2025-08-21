@@ -32,7 +32,7 @@ export default function PropertiesPage() {
   const fetchProperties = async () => {
     try {
       setLoading(true);
-      const data = await PropertyService.getPropertiesWithFilters({});
+      const data = await PropertyService.getProperties({});
       setProperties(data);
     } catch (error) {
       console.error("Error fetching properties:", error);
