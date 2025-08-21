@@ -128,6 +128,24 @@ export default function InvoicesPage() {
     setSelectedInvoice(null);
   };
 
+  const handleComprehensiveSeeding = async () => {
+    if (
+      confirm(
+        "Are you sure you want to seed comprehensive test data? This will overwrite existing data and add many sample invoices."
+      )
+    ) {
+      await InvoiceService.seedComprehensiveTestData();
+      alert("Comprehensive test data seeded successfully!");
+      fetchInvoices(); // Refresh data
+    }
+  };
+
+  const handleAddInvoice = () => {
+    InvoiceService.seedSampleInvoices();
+    alert("Sample invoice added!");
+    fetchInvoices(); // Refresh data
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -141,36 +159,30 @@ export default function InvoicesPage() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
-          <p className="text-gray-600 mt-2">Manage your invoices and billing</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => InvoiceService.seedSampleInvoices()}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
-            🌱 Seed Sample Data
-          </button>
-          <button
-            onClick={() => {
-              if (
-                confirm(
-                  "Are you sure you want to clear all invoices? This action cannot be undone."
-                )
-              ) {
-                InvoiceService.clearAllSampleInvoices();
-              }
-            }}
-            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            🗑️ Clear All
-          </button>
-          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            <Plus size={16} className="mr-2" />
-            Create Invoice
-          </button>
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
+            <p className="text-gray-600">
+              Manage and track all your invoices in one place
+            </p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleComprehensiveSeeding}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              title="Seed comprehensive test data for analytics testing"
+            >
+              🌱 Seed Test Data
+            </button>
+            <button
+              onClick={handleAddInvoice}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Invoice
+            </button>
+          </div>
         </div>
       </div>
 

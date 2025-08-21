@@ -1,8 +1,9 @@
-import { Float34Api, PeriodGranularity } from "@/types/float34";
+import { Float34Api } from "./index";
+import { PeriodGranularity } from "@/types/float34";
 import { InvoiceService } from "@/services/invoiceService";
 import { PropertyService } from "@/services/propertyService";
 import { ServiceProviderService } from "@/services/serviceProviderService";
-import { Invoice } from "@/types/float34";
+import { Invoice } from "@/services/invoiceService";
 
 export class InvoiceApi implements Float34Api {
   /**
@@ -96,65 +97,83 @@ export class InvoiceApi implements Float34Api {
         );
       }
 
-      // Get properties for reference
-      const properties = (await PropertyService.getProperties()) || [];
+      // Get properties and providers for reference and enrichment
+      const [properties, providersResponse] = await Promise.all([
+        PropertyService.getProperties(),
+        ServiceProviderService.getProviders(),
+      ]);
+      const propertiesList = properties || [];
+      const providers = providersResponse?.providers || [];
+
+      // Enrich invoices with names for better analytics
+      const enrichedInvoices = filteredInvoices.map((invoice) => {
+        const property = propertiesList.find(
+          (p) => p.id === invoice.propertyId
+        );
+        const provider = providers.find((p) => p.id === invoice.providerId);
+        return {
+          ...invoice,
+          propertyName: property?.name || "Unknown Property",
+          providerName: provider?.name || "Unknown Provider",
+        };
+      });
 
       // Calculate summary
-      const totalRevenue = filteredInvoices.reduce(
+      const totalRevenue = enrichedInvoices.reduce(
         (sum, invoice) => sum + invoice.total,
         0
       );
-      const totalExpenses = totalRevenue * 0.3; // 30% assumption for now
-      const totalProfit = totalRevenue * 0.7; // 70% assumption for now
-      const paidInvoices = filteredInvoices.filter(
-        (invoice) => invoice.status === "paid"
-      );
-      const totalPaidAmount = paidInvoices.reduce(
-        (sum, invoice) => sum + invoice.total,
-        0
-      );
+      const totalExpenses = totalRevenue * 0.3; // 30% expense assumption
+      const totalProfit = totalRevenue * 0.7; // 70% profit assumption
+      const totalPaidAmount = enrichedInvoices
+        .filter((invoice) => invoice.status === "paid")
+        .reduce((sum, invoice) => sum + invoice.total, 0);
 
-      // Calculate by property
-      const byProperty = properties
-        .map((property) => {
-          const propertyInvoices = filteredInvoices.filter(
-            (invoice) => invoice.propertyId === property.id
-          );
-
-          if (propertyInvoices.length === 0) return null;
-
-          const propertyRevenue = propertyInvoices.reduce(
-            (sum, invoice) => sum + invoice.total,
-            0
-          );
-          const propertyPaidInvoices = propertyInvoices.filter(
-            (invoice) => invoice.status === "paid"
-          );
-          const propertyPaidAmount = propertyPaidInvoices.reduce(
-            (sum, invoice) => sum + invoice.total,
-            0
-          );
-
-          return {
-            propertyId: property.id,
-            propertyName: property.name,
-            revenue: propertyRevenue,
-            profit: propertyRevenue * 0.7,
-            marginPct: 70.0,
-            invoicesPaidPct:
-              propertyRevenue > 0
-                ? (propertyPaidAmount / propertyRevenue) * 100
-                : 0,
+      // Group by property
+      const propertyGroups = enrichedInvoices.reduce((groups, invoice) => {
+        const propertyId = invoice.propertyId;
+        if (!groups[propertyId]) {
+          groups[propertyId] = {
+            propertyId,
+            propertyName: invoice.propertyName,
+            invoices: [],
+            revenue: 0,
+            expenses: 0,
+            profit: 0,
+            marginPct: 0,
+            invoicesPaidPct: 0,
           };
-        })
-        .filter(Boolean)
-        .sort((a, b) => (b?.revenue || 0) - (a?.revenue || 0)); // Sort by revenue descending
+        }
+        groups[propertyId].invoices.push(invoice);
+        groups[propertyId].revenue += invoice.total;
+        return groups;
+      }, {} as any);
 
-      // Generate time series data based on granularity
+      // Calculate property-level metrics
+      const byProperty = Object.values(propertyGroups).map((group: any) => {
+        const paidInvoices = group.invoices.filter(
+          (invoice: any) => invoice.status === "paid"
+        );
+        const paidAmount = paidInvoices.reduce(
+          (sum: number, invoice: any) => sum + invoice.total,
+          0
+        );
+
+        return {
+          ...group,
+          expenses: group.revenue * 0.3,
+          profit: group.revenue * 0.7,
+          marginPct: 70.0,
+          invoicesPaidPct:
+            group.revenue > 0 ? (paidAmount / group.revenue) * 100 : 0,
+        };
+      });
+
+      // Generate time series data
       const series = this.generateTimeSeriesData(
-        filteredInvoices,
+        enrichedInvoices,
         granularity,
-        properties
+        propertiesList
       );
 
       return {
@@ -223,65 +242,81 @@ export class InvoiceApi implements Float34Api {
         );
       }
 
-      // Get providers for reference
-      const providersResponse = await ServiceProviderService.getProviders();
-      const providers = providersResponse?.providers || []; // Extract the providers array with fallback
+      // Get properties and providers for reference and enrichment
+      const [properties, providersResponse] = await Promise.all([
+        PropertyService.getProperties(),
+        ServiceProviderService.getProviders(),
+      ]);
+      const propertiesList = properties || [];
+      const providers = providersResponse?.providers || [];
+
+      // Enrich invoices with names for better analytics
+      const enrichedInvoices = filteredInvoices.map((invoice) => {
+        const property = propertiesList.find(
+          (p) => p.id === invoice.propertyId
+        );
+        const provider = providers.find((p) => p.id === invoice.providerId);
+        return {
+          ...invoice,
+          propertyName: property?.name || "Unknown Property",
+          providerName: provider?.name || "Unknown Provider",
+        };
+      });
 
       // Calculate summary
-      const totalRevenue = filteredInvoices.reduce(
+      const totalRevenue = enrichedInvoices.reduce(
         (sum, invoice) => sum + invoice.total,
         0
       );
-      const totalExpenses = totalRevenue * 0.3; // 30% assumption for now
-      const totalProfit = totalRevenue * 0.7; // 70% assumption for now
-      const paidInvoices = filteredInvoices.filter(
-        (invoice) => invoice.status === "paid"
-      );
-      const totalPaidAmount = paidInvoices.reduce(
-        (sum, invoice) => sum + invoice.total,
-        0
-      );
+      const totalExpenses = totalRevenue * 0.3; // 30% expense assumption
+      const totalProfit = totalRevenue * 0.7; // 70% profit assumption
+      const totalPaidAmount = enrichedInvoices
+        .filter((invoice) => invoice.status === "paid")
+        .reduce((sum, invoice) => sum + invoice.total, 0);
 
-      // Calculate by provider
-      const byProvider = providers
-        .map((provider) => {
-          const providerInvoices = filteredInvoices.filter(
-            (invoice) => invoice.providerId === provider.id
-          );
-
-          if (providerInvoices.length === 0) return null;
-
-          const providerRevenue = providerInvoices.reduce(
-            (sum, invoice) => sum + invoice.total,
-            0
-          );
-          const providerPaidInvoices = providerInvoices.filter(
-            (invoice) => invoice.status === "paid"
-          );
-          const providerPaidAmount = providerPaidInvoices.reduce(
-            (sum, invoice) => sum + invoice.total,
-            0
-          );
-
-          return {
-            providerId: provider.id,
-            providerName: provider.name,
-            service: provider.service,
-            revenue: providerRevenue,
-            profit: providerRevenue * 0.7,
-            marginPct: 70.0,
-            invoicesPaidPct:
-              providerRevenue > 0
-                ? (providerPaidAmount / providerRevenue) * 100
-                : 0,
+      // Group by provider
+      const providerGroups = enrichedInvoices.reduce((groups, invoice) => {
+        const providerId = invoice.providerId;
+        if (!groups[providerId]) {
+          groups[providerId] = {
+            providerId,
+            providerName: invoice.providerName,
+            invoices: [],
+            revenue: 0,
+            expenses: 0,
+            profit: 0,
+            marginPct: 0,
+            invoicesPaidPct: 0,
           };
-        })
-        .filter(Boolean)
-        .sort((a, b) => (b?.revenue || 0) - (a?.revenue || 0)); // Sort by revenue descending
+        }
+        groups[providerId].invoices.push(invoice);
+        groups[providerId].revenue += invoice.total;
+        return groups;
+      }, {} as any);
 
-      // Generate time series data based on granularity
+      // Calculate provider-level metrics
+      const byProvider = Object.values(providerGroups).map((group: any) => {
+        const paidInvoices = group.invoices.filter(
+          (invoice: any) => invoice.status === "paid"
+        );
+        const paidAmount = paidInvoices.reduce(
+          (sum: number, invoice: any) => sum + invoice.total,
+          0
+        );
+
+        return {
+          ...group,
+          expenses: group.revenue * 0.3,
+          profit: group.revenue * 0.7,
+          marginPct: 70.0,
+          invoicesPaidPct:
+            group.revenue > 0 ? (paidAmount / group.revenue) * 100 : 0,
+        };
+      });
+
+      // Generate time series data
       const series = this.generateTimeSeriesData(
-        filteredInvoices,
+        enrichedInvoices,
         granularity,
         providers,
         "provider"
@@ -300,7 +335,7 @@ export class InvoiceApi implements Float34Api {
         series,
       };
     } catch (error) {
-      console.error("Error fetching provider financials:", error);
+      console.error("Error fetching service provider financials:", error);
       return {
         summary: { revenue: 0, invoicesPaidPct: 0 },
         byProvider: [],
@@ -377,14 +412,25 @@ export class InvoiceApi implements Float34Api {
       const properties = propertiesResponse || [];
       const providers = providersResponse?.providers || []; // Extract the providers array with fallback
 
+      // Enrich invoices with names for better analytics
+      const enrichedInvoices = filteredInvoices.map((invoice) => {
+        const property = properties.find((p) => p.id === invoice.propertyId);
+        const provider = providers.find((p) => p.id === invoice.providerId);
+        return {
+          ...invoice,
+          propertyName: property?.name || "Unknown Property",
+          providerName: provider?.name || "Unknown Provider",
+        };
+      });
+
       // Calculate summary
-      const totalRevenue = filteredInvoices.reduce(
+      const totalRevenue = enrichedInvoices.reduce(
         (sum, invoice) => sum + invoice.total,
         0
       );
       const totalExpenses = totalRevenue * 0.3; // 30% assumption for now
       const totalProfit = totalRevenue * 0.7; // 70% assumption for now
-      const paidInvoices = filteredInvoices.filter(
+      const paidInvoices = enrichedInvoices.filter(
         (invoice) => invoice.status === "paid"
       );
       const totalPaidAmount = paidInvoices.reduce(
@@ -395,7 +441,7 @@ export class InvoiceApi implements Float34Api {
       // Calculate by property
       const byProperty = properties
         .map((property) => {
-          const propertyInvoices = filteredInvoices.filter(
+          const propertyInvoices = enrichedInvoices.filter(
             (invoice) => invoice.propertyId === property.id
           );
 
@@ -431,7 +477,7 @@ export class InvoiceApi implements Float34Api {
       // Calculate by provider
       const byProvider = providers
         .map((provider) => {
-          const providerInvoices = filteredInvoices.filter(
+          const providerInvoices = enrichedInvoices.filter(
             (invoice) => invoice.providerId === provider.id
           );
 
@@ -467,30 +513,25 @@ export class InvoiceApi implements Float34Api {
 
       // Generate combined data (property + provider combinations)
       const combinedData = properties
-        .map((property) => {
-          const propertyInvoices = filteredInvoices.filter(
-            (invoice) => invoice.propertyId === property.id
-          );
-
-          if (propertyInvoices.length === 0) return null;
-
-          // Group by provider within this property
-          const providerGroups = providers
+        .flatMap((property) => {
+          return providers
             .map((provider) => {
-              const providerInvoices = propertyInvoices.filter(
-                (invoice) => invoice.providerId === provider.id
+              const combinedInvoices = enrichedInvoices.filter(
+                (invoice) =>
+                  invoice.propertyId === property.id &&
+                  invoice.providerId === provider.id
               );
 
-              if (providerInvoices.length === 0) return null;
+              if (combinedInvoices.length === 0) return null;
 
-              const revenue = providerInvoices.reduce(
+              const combinedRevenue = combinedInvoices.reduce(
                 (sum, invoice) => sum + invoice.total,
                 0
               );
-              const paidInvoices = providerInvoices.filter(
+              const combinedPaidInvoices = combinedInvoices.filter(
                 (invoice) => invoice.status === "paid"
               );
-              const paidAmount = paidInvoices.reduce(
+              const combinedPaidAmount = combinedPaidInvoices.reduce(
                 (sum, invoice) => sum + invoice.total,
                 0
               );
@@ -498,23 +539,22 @@ export class InvoiceApi implements Float34Api {
               return {
                 propertyName: property.name,
                 providerName: provider.name,
-                revenue,
-                profit: revenue * 0.7,
+                revenue: combinedRevenue,
+                profit: combinedRevenue * 0.7,
                 marginPct: 70.0,
-                invoicesPaidPct: revenue > 0 ? (paidAmount / revenue) * 100 : 0,
+                invoicesPaidPct:
+                  combinedRevenue > 0
+                    ? (combinedPaidAmount / combinedRevenue) * 100
+                    : 0,
               };
             })
-            .filter(Boolean);
-
-          return providerGroups;
+            .filter((item): item is NonNullable<typeof item> => item !== null);
         })
-        .filter(Boolean)
-        .flat()
-        .sort((a, b) => (b?.revenue || 0) - (a?.revenue || 0));
+        .sort((a, b) => b.revenue - a.revenue);
 
       // Generate time series data
       const series = this.generateTimeSeriesData(
-        filteredInvoices,
+        enrichedInvoices,
         granularity,
         properties
       );
