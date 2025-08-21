@@ -64,6 +64,24 @@ function getGrowthIcon(value: number) {
   return null;
 }
 
+function getMonthName(month: string): string {
+  const monthNames = {
+    "01": "January",
+    "02": "February",
+    "03": "March",
+    "04": "April",
+    "05": "May",
+    "06": "June",
+    "07": "July",
+    "08": "August",
+    "09": "September",
+    "10": "October",
+    "11": "November",
+    "12": "December",
+  };
+  return monthNames[month as keyof typeof monthNames] || month;
+}
+
 function formatPeriodLabel(
   period: string,
   granularity: PeriodGranularity
@@ -1457,6 +1475,8 @@ export default function AnalyticsPage() {
   // Component state
   const [properties, setProperties] = useState<Property[]>([]);
   const [providers, setProviders] = useState<any[]>([]);
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [financialData, setFinancialData] = useState<{
     summary: {
       revenue: number;
@@ -1664,6 +1684,47 @@ export default function AnalyticsPage() {
     fetchProviders();
   }, [user, userProfile]);
 
+  // Fetch available years and months from invoice data
+  useEffect(() => {
+    const fetchAvailableDates = async () => {
+      if (!user || !userProfile || userProfile.role !== "admin") return;
+
+      try {
+        // Import InvoiceService dynamically to avoid circular dependencies
+        const { InvoiceService } = await import("@/services/invoiceService");
+        const invoices = await InvoiceService.getInvoices();
+
+        const years = InvoiceService.getAvailableYears(invoices);
+        const months = InvoiceService.getAvailableMonths(invoices);
+
+        setAvailableYears(years);
+        setAvailableMonths(months);
+
+        console.log("🔍 Available years:", years);
+        console.log("🔍 Available months:", months);
+      } catch (error) {
+        console.error("❌ Error fetching available dates:", error);
+        // Fallback to default years
+        setAvailableYears(["2024", "2023", "2022"]);
+        setAvailableMonths([
+          "01",
+          "02",
+          "03",
+          "04",
+          "05",
+          "06",
+          "07",
+          "08",
+          "09",
+          "10",
+          "11",
+          "12",
+        ]);
+      }
+    };
+    fetchAvailableDates();
+  }, [user, userProfile]);
+
   // Update URL params
   const updateSearchParams = useCallback(
     (updates: Record<string, string | null>) => {
@@ -1704,6 +1765,8 @@ export default function AnalyticsPage() {
       from: "2024-01",
       year: null,
       month: null,
+      status: null,
+      search: null,
     });
   };
 
@@ -1945,6 +2008,59 @@ export default function AnalyticsPage() {
 
       {/* Filters Bar */}
       <div className="mb-6">
+        {/* Search Field */}
+        <div className="mb-4">
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+              size={20}
+            />
+            <input
+              type="text"
+              placeholder="Search by invoice #, description, provider, or property..."
+              value={searchParams.get("search") || ""}
+              onChange={(e) => {
+                const params = new URLSearchParams(searchParams);
+                if (e.target.value) {
+                  params.set("search", e.target.value);
+                } else {
+                  params.delete("search");
+                }
+                router.push(`${pathname}?${params.toString()}`);
+              }}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div className="mt-2 text-sm text-gray-500">
+            Search across invoice numbers, descriptions, service providers, and
+            property names
+          </div>
+          {/* Quick Search Suggestions */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="text-xs text-gray-500">Quick search:</span>
+            {[
+              "INV-2024",
+              "CleanPro",
+              "Parking",
+              "Flour Market",
+              "Paid",
+              "Overdue",
+            ].map((term) => (
+              <button
+                key={term}
+                onClick={() => {
+                  const params = new URLSearchParams(searchParams);
+                  params.set("search", term);
+                  router.push(`${pathname}?${params.toString()}`);
+                }}
+                className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors"
+              >
+                {term}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
           <div className="flex-1 min-w-0">
             <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -1991,9 +2107,11 @@ export default function AnalyticsPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Years</option>
-              <option value="2024">2024</option>
-              <option value="2023">2023</option>
-              <option value="2022">2022</option>
+              {availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -2009,18 +2127,36 @@ export default function AnalyticsPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Months</option>
-              <option value="01">January</option>
-              <option value="02">February</option>
-              <option value="03">March</option>
-              <option value="04">April</option>
-              <option value="05">May</option>
-              <option value="06">June</option>
-              <option value="07">July</option>
-              <option value="08">August</option>
-              <option value="09">September</option>
-              <option value="10">October</option>
-              <option value="11">November</option>
-              <option value="12">December</option>
+              {availableMonths.map((month) => (
+                <option key={month} value={month}>
+                  {getMonthName(month)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Invoice Status
+            </label>
+            <select
+              value={searchParams.get("status") || "all"}
+              onChange={(e) => {
+                const params = new URLSearchParams(searchParams);
+                if (e.target.value !== "all") {
+                  params.set("status", e.target.value);
+                } else {
+                  params.delete("status");
+                }
+                router.push(`${pathname}?${params.toString()}`);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Statuses</option>
+              <option value="paid">Paid</option>
+              <option value="sent">Sent</option>
+              <option value="overdue">Overdue</option>
+              <option value="draft">Draft</option>
             </select>
           </div>
 
@@ -2039,7 +2175,9 @@ export default function AnalyticsPage() {
             granularity !== "MONTH" ||
             from !== "2024-01" ||
             yearFilter !== "all" ||
-            monthFilter !== "all") && (
+            monthFilter !== "all" ||
+            searchParams.get("status") ||
+            searchParams.get("search")) && (
             <button
               onClick={clearAllFilters}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -2056,7 +2194,9 @@ export default function AnalyticsPage() {
           granularity !== "MONTH" ||
           from !== "2024-01" ||
           yearFilter !== "all" ||
-          monthFilter !== "all") && (
+          monthFilter !== "all" ||
+          searchParams.get("status") ||
+          searchParams.get("search")) && (
           <div className="mt-3 flex flex-wrap gap-2">
             {propertyId && selectedProperty && (
               <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
@@ -2124,33 +2264,43 @@ export default function AnalyticsPage() {
             {monthFilter !== "all" && (
               <span className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-800 text-sm rounded-full">
                 <Calendar size={12} />
-                Month:{" "}
-                {monthFilter === "01"
-                  ? "January"
-                  : monthFilter === "02"
-                  ? "February"
-                  : monthFilter === "03"
-                  ? "March"
-                  : monthFilter === "04"
-                  ? "April"
-                  : monthFilter === "05"
-                  ? "May"
-                  : monthFilter === "06"
-                  ? "June"
-                  : monthFilter === "07"
-                  ? "July"
-                  : monthFilter === "08"
-                  ? "August"
-                  : monthFilter === "09"
-                  ? "September"
-                  : monthFilter === "10"
-                  ? "October"
-                  : monthFilter === "11"
-                  ? "November"
-                  : "December"}
+                Month: {monthFilter}
                 <button
                   onClick={() => updateSearchParams({ month: null })}
                   className="ml-1 hover:text-orange-600"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {searchParams.get("status") && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-800 text-sm rounded-full">
+                <Activity size={12} />
+                Status: {searchParams.get("status")?.charAt(0).toUpperCase()}
+                {searchParams.get("status")?.slice(1)}
+                <button
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams);
+                    params.delete("status");
+                    router.push(`${pathname}?${params.toString()}`);
+                  }}
+                  className="ml-1 hover:text-indigo-600"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {searchParams.get("search") && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-teal-100 text-teal-800 text-sm rounded-full">
+                <Search size={12} />
+                Search: "{searchParams.get("search")}"
+                <button
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams);
+                    params.delete("search");
+                    router.push(`${pathname}?${params.toString()}`);
+                  }}
+                  className="ml-1 hover:text-teal-600"
                 >
                   <X size={12} />
                 </button>
@@ -2170,126 +2320,109 @@ export default function AnalyticsPage() {
         onProviderChange={handleProviderChange}
       />
 
-      {/* Data Summary Section */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-        <div className="flex items-center gap-2 mb-3">
-          <Activity size={16} className="text-gray-600" />
-          <h3 className="text-sm font-medium text-gray-900">
-            Data Scope Summary
-          </h3>
-        </div>
+      {/* Data Scope Summary */}
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           <div>
-            <span className="text-gray-600">Properties:</span>
-            <span className="ml-2 font-medium text-gray-900">
+            <span className="text-blue-600 font-medium">Data Scope:</span>
+            <div className="text-blue-800">
+              {propertyId ? "Single Property" : "All Properties"}
+              {providerId && " + Service Provider"}
+              {searchParams.get("status") &&
+                ` + ${searchParams
+                  .get("status")
+                  ?.charAt(0)
+                  .toUpperCase()}${searchParams
+                  .get("status")
+                  ?.slice(1)} Status`}
+              {yearFilter !== "all" && ` + ${yearFilter}`}
+              {monthFilter !== "all" && ` + ${getMonthName(monthFilter)}`}
+            </div>
+          </div>
+          <div>
+            <span className="text-blue-600 font-medium">Properties:</span>
+            <div className="text-blue-800">
               {propertyId
                 ? "1 (Filtered)"
-                : `${
-                    properties.filter((p) => p.status === "active").length
-                  } (All Active)`}
-            </span>
+                : properties.filter((p) => p.status === "active").length}
+            </div>
           </div>
           <div>
-            <span className="text-gray-600">Service Providers:</span>
-            <span className="ml-2 font-medium text-gray-900">
+            <span className="text-blue-600 font-medium">
+              Service Providers:
+            </span>
+            <div className="text-blue-800">
               {providerId
                 ? "1 (Filtered)"
-                : `${
-                    providers.filter((p) => p.status === "active").length
-                  } (All Active)`}
-            </span>
+                : providers.filter((p) => p.status === "active").length}
+            </div>
           </div>
           <div>
-            <span className="text-gray-600">Time Period:</span>
-            <span className="ml-2 font-medium text-gray-900">
-              {from ? formatPeriodLabel(from, granularity) : "All time"}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-600">Data Granularity:</span>
-            <span className="ml-2 font-medium text-gray-900 capitalize">
-              {granularity.toLowerCase()}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-600">Year Filter:</span>
-            <span className="ml-2 font-medium text-gray-900">
-              {yearFilter !== "all" ? yearFilter : "All years"}
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-600">Month Filter:</span>
-            <span className="ml-2 font-medium text-gray-900">
-              {monthFilter !== "all"
-                ? monthFilter === "01"
-                  ? "January"
-                  : monthFilter === "02"
-                  ? "February"
-                  : monthFilter === "03"
-                  ? "March"
-                  : monthFilter === "04"
-                  ? "April"
-                  : monthFilter === "05"
-                  ? "May"
-                  : monthFilter === "06"
-                  ? "June"
-                  : monthFilter === "07"
-                  ? "July"
-                  : monthFilter === "08"
-                  ? "August"
-                  : monthFilter === "09"
-                  ? "September"
-                  : monthFilter === "10"
-                  ? "October"
-                  : monthFilter === "11"
-                  ? "November"
-                  : "December"
-                : "All months"}
-            </span>
+            <span className="text-blue-600 font-medium">Time Granularity:</span>
+            <div className="text-blue-800">
+              {granularity === "WEEK"
+                ? "Weekly"
+                : granularity === "MONTH"
+                ? "Monthly"
+                : "Yearly"}
+            </div>
           </div>
         </div>
-
-        {propertyId && providerId && (
-          <div className="mt-3 p-3 bg-indigo-100 border border-indigo-200 rounded">
-            <p className="text-sm text-indigo-800">
-              <strong>Precise Filter:</strong> Showing data for{" "}
-              {selectedProvider?.name} specifically at {selectedProperty?.name}.
-              This represents the exact relationship between this service
-              provider and property location.
-            </p>
-          </div>
-        )}
-
-        {propertyId && !providerId && (
-          <div className="mt-3 p-3 bg-green-100 border border-green-200 rounded">
-            <p className="text-sm text-green-800">
-              <strong>Property Filter:</strong> Showing data for{" "}
-              {selectedProperty?.name} across all service providers. This gives
-              you a comprehensive view of the property's performance.
-            </p>
-          </div>
-        )}
-
-        {providerId && !propertyId && (
-          <div className="mt-3 p-3 bg-purple-100 border border-purple-200 rounded">
-            <p className="text-sm text-purple-800">
-              <strong>Service Provider Filter:</strong> Showing data for{" "}
-              {selectedProvider?.name} across all properties. This gives you a
-              comprehensive view of the provider's performance.
-            </p>
-          </div>
-        )}
-
-        {!propertyId && !providerId && (
-          <div className="mt-3 p-3 bg-blue-100 border border-blue-200 rounded">
-            <p className="text-sm text-blue-800">
-              <strong>Aggregate View:</strong> Showing combined data across all
-              properties and service providers. Use filters to drill down into
-              specific relationships.
-            </p>
-          </div>
-        )}
       </div>
+
+      {/* Summary Insights */}
+      {financialData && (
+        <div className="mb-8 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg">
+          <h3 className="text-lg font-semibold text-indigo-900 mb-4">
+            Analytics Insights
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-indigo-600 mb-1">
+                {financialData.byProperty.length}
+              </div>
+              <div className="text-sm text-indigo-800">
+                Properties with Data
+              </div>
+              <div className="text-xs text-indigo-600 mt-1">
+                {propertyId
+                  ? "Single property view"
+                  : "Multi-property analysis"}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600 mb-1">
+                {providerId
+                  ? "1"
+                  : providers.filter((p) => p.status === "active").length}
+              </div>
+              <div className="text-sm text-purple-800">Service Providers</div>
+              <div className="text-xs text-purple-600 mt-1">
+                {providerId
+                  ? "Single provider view"
+                  : "Multi-provider analysis"}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 mb-1">
+                {granularity === "WEEK"
+                  ? "Weekly"
+                  : granularity === "MONTH"
+                  ? "Monthly"
+                  : "Yearly"}
+              </div>
+              <div className="text-sm text-blue-800">Data Granularity</div>
+              <div className="text-xs text-blue-600 mt-1">
+                {granularity === "WEEK"
+                  ? "Detailed weekly trends"
+                  : granularity === "MONTH"
+                  ? "Monthly performance"
+                  : "Annual overview"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Debug Information */}
       {process.env.NODE_ENV === "development" && (
