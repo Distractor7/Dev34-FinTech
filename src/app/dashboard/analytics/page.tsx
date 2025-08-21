@@ -18,6 +18,7 @@ import {
   Filter,
   Users,
   Building2,
+  AlertCircle,
 } from "lucide-react";
 import { Property, PeriodGranularity, PropertyRankItem } from "@/types/float34";
 import { getApi } from "@/lib/api";
@@ -37,6 +38,7 @@ import {
 import { Float34Api } from "@/lib/api";
 import { Invoice } from "@/services/invoiceService";
 import { ServiceProviderService } from "@/services/serviceProviderService";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Helper functions
 function formatCurrency(amount: number, currency: string = "USD"): string {
@@ -251,10 +253,25 @@ function ServiceProviderSelect({
 
   const selectedProvider = providers.find((p) => p.id === value);
 
+  // Debug logging
+  useEffect(() => {
+    console.log("🔍 ServiceProviderSelect - providers:", providers);
+    console.log("🔍 ServiceProviderSelect - value:", value);
+    console.log(
+      "🔍 ServiceProviderSelect - selectedProvider:",
+      selectedProvider
+    );
+  }, [providers, value, selectedProvider]);
+
   const filteredProviders = providers.filter(
     (provider) =>
       provider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       provider.service.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  console.log(
+    "🔍 ServiceProviderSelect - filteredProviders:",
+    filteredProviders
   );
 
   const handleClear = () => {
@@ -582,9 +599,9 @@ function RevenueTrendChart({
           <div className="text-center">
             <LineChart className="mx-auto mb-4 text-gray-400" size={48} />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Revenue Trend
+              Revenue Overview
             </h3>
-            <p className="text-sm text-gray-600">No trend data available</p>
+            <p className="text-sm text-gray-600">No revenue data available</p>
           </div>
         </div>
       </div>
@@ -1419,6 +1436,7 @@ export default function AnalyticsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user, userProfile, loading: authLoading } = useAuth();
 
   // URL state
   const propertyId = searchParams.get("propertyId") || "";
@@ -1454,15 +1472,66 @@ export default function AnalyticsPage() {
   } | null>(null);
   const [combinedData, setCombinedData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Get selected property name for display
   const selectedProperty = properties.find((p) => p.id === propertyId);
   const selectedProvider = providers.find((p) => p.id === providerId);
 
-  // Fetch data
+  // Check if user is authenticated and has proper permissions
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user || !userProfile) {
+        console.log("User not authenticated, redirecting to login");
+        router.push("/");
+        return;
+      }
+
+      // Check if user has admin role for analytics access
+      if (userProfile.role !== "admin") {
+        console.log(
+          "User does not have admin role, redirecting to coming-soon"
+        );
+        router.push("/dashboard/coming-soon");
+        return;
+      }
+    }
+  }, [user, userProfile, authLoading, router]);
+
+  // Show loading state while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while redirecting
+  if (!user || !userProfile || userProfile.role !== "admin") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fetch data only when authenticated
   const fetchData = async () => {
+    // Don't fetch if not authenticated
+    if (!user || !userProfile || userProfile.role !== "admin") {
+      return;
+    }
+
     try {
       setLoading(true);
+      setError(null);
       console.log("🔍 Fetching financial data...");
       console.log("🔍 Current filters:", {
         propertyId,
@@ -1479,14 +1548,30 @@ export default function AnalyticsPage() {
         propertyId: propertyId || undefined,
         providerId: providerId || undefined,
         granularity,
-        from: from || undefined,
-        to: to || undefined,
+        from: from || "2024-01", // Provide default value if empty
+        to: to || new Date().toISOString().split("T")[0], // Provide default value if empty
       });
 
       console.log("🔍 Financial data received:", data);
       setFinancialData(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error fetching financial data:", error);
+
+      // Handle specific Firebase permission errors
+      if (
+        error.message?.includes("Missing or insufficient permissions") ||
+        error.message?.includes("permission-denied")
+      ) {
+        setError(
+          "You don't have permission to access this data. Please contact your administrator."
+        );
+      } else if (error.message?.includes("unauthenticated")) {
+        setError("Please log in to access this data.");
+        router.push("/");
+      } else {
+        setError("Failed to load financial data. Please try again later.");
+      }
+
       setFinancialData(null);
     } finally {
       setLoading(false);
@@ -1494,34 +1579,53 @@ export default function AnalyticsPage() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Only fetch data when authenticated and has proper role
+    if (user && userProfile && userProfile.role === "admin") {
+      fetchData();
+    }
+  }, [user, userProfile, propertyId, providerId, granularity, from, to]);
 
-  // Fetch properties
+  // Fetch properties only when authenticated
   useEffect(() => {
     const fetchProperties = async () => {
+      if (!user || !userProfile || userProfile.role !== "admin") return;
+
       try {
         const props = await getApi().listProperties();
         setProperties(props);
       } catch (error) {
         console.error("Error fetching properties:", error);
+        setError("Failed to load properties. Please try again later.");
       }
     };
     fetchProperties();
-  }, []);
+  }, [user, userProfile]);
 
-  // Fetch providers
+  // Fetch providers only when authenticated
   useEffect(() => {
     const fetchProviders = async () => {
+      if (!user || !userProfile || userProfile.role !== "admin") return;
+
       try {
-        const provs = await getApi().listProviders();
-        setProviders(provs);
+        console.log("🔍 Fetching service providers for analytics...");
+        const providersResponse = await ServiceProviderService.getProviders();
+        console.log("🔍 Providers response:", providersResponse);
+
+        if (providersResponse && providersResponse.providers) {
+          setProviders(providersResponse.providers);
+          console.log("🔍 Set providers:", providersResponse.providers.length);
+        } else {
+          console.warn("⚠️ No providers data in response");
+          setProviders([]);
+        }
       } catch (error) {
-        console.error("Error fetching providers:", error);
+        console.error("❌ Error fetching providers:", error);
+        setError("Failed to load service providers. Please try again later.");
+        setProviders([]);
       }
     };
     fetchProviders();
-  }, []);
+  }, [user, userProfile]);
 
   // Update URL params
   const updateSearchParams = useCallback(
@@ -1598,6 +1702,37 @@ export default function AnalyticsPage() {
             ))}
           </div>
           <div className="h-96 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <div className="text-red-600 mb-4">
+            <AlertCircle className="mx-auto h-12 w-12" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Access Error
+          </h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => router.push("/dashboard/home")}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Go to Dashboard
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1947,6 +2082,20 @@ export default function AnalyticsPage() {
         )}
       </div>
 
+      {/* Debug Information */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <h3 className="text-sm font-medium text-yellow-900 mb-2">
+            Debug: Properties: {properties.length}, Providers:{" "}
+            {providers.length}
+          </h3>
+          <div className="text-xs text-yellow-700">
+            Selected Property: {propertyId || "None"} | Selected Provider:{" "}
+            {providerId || "None"}
+          </div>
+        </div>
+      )}
+
       {/* Quick Filter Suggestions */}
       {!propertyId && !providerId && (
         <QuickFilterSuggestions
@@ -2055,38 +2204,46 @@ export default function AnalyticsPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             <div>
-              <span className="font-medium">Series Count:</span>{" "}
-              {series?.length || 0}
+              <span className="font-medium">Properties Count:</span>{" "}
+              {properties.length}
             </div>
             <div>
-              <span className="font-medium">Has Trend Data:</span>{" "}
-              {series?.some((s) => s.trend && s.trend.length > 0)
-                ? "Yes"
-                : "No"}
+              <span className="font-medium">Providers Count:</span>{" "}
+              {providers.length}
             </div>
             <div>
-              <span className="font-medium">Combined Data:</span>{" "}
-              {combinedData?.length || 0}
-            </div>
-            <div>
-              <span className="font-medium">Property Filter:</span>{" "}
+              <span className="font-medium">Selected Property:</span>{" "}
               {propertyId || "None"}
             </div>
             <div>
-              <span className="font-medium">Provider Filter:</span>{" "}
+              <span className="font-medium">Selected Provider:</span>{" "}
               {providerId || "None"}
             </div>
             <div>
               <span className="font-medium">Granularity:</span> {granularity}
             </div>
+            <div>
+              <span className="font-medium">Time Period:</span>{" "}
+              {from || "All time"}
+            </div>
           </div>
-          {series && series.length > 0 && (
+          {providers.length > 0 && (
             <details className="mt-3">
               <summary className="cursor-pointer text-sm font-medium text-yellow-800">
-                Series Data Structure
+                Providers Data
               </summary>
               <pre className="mt-2 text-xs text-yellow-700 bg-yellow-100 p-2 rounded overflow-auto max-h-40">
-                {JSON.stringify(series.slice(0, 2), null, 2)}
+                {JSON.stringify(providers.slice(0, 2), null, 2)}
+              </pre>
+            </details>
+          )}
+          {properties.length > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm font-medium text-yellow-800">
+                Properties Data
+              </summary>
+              <pre className="mt-2 text-xs text-yellow-700 bg-yellow-100 p-2 rounded overflow-auto max-h-40">
+                {JSON.stringify(properties.slice(0, 2), null, 2)}
               </pre>
             </details>
           )}

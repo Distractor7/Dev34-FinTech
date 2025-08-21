@@ -31,6 +31,7 @@ import {
 } from "@/types/float34";
 import ServiceProviderService from "@/services/serviceProviderService";
 import { auth } from "@/services/firebaseConfig";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Service Provider Form Component
 function ServiceProviderForm({
@@ -656,6 +657,52 @@ export default function ServiceProvidersPage() {
     suspended: 0,
   });
 
+  const { user, userProfile, loading: authLoading } = useAuth();
+
+  // Check if user is authenticated and has proper permissions
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user || !userProfile) {
+        console.log("User not authenticated, redirecting to login");
+        window.location.href = "/";
+        return;
+      }
+
+      // Check if user has admin role for service provider management
+      if (userProfile.role !== "admin") {
+        console.log(
+          "User does not have admin role, redirecting to coming-soon"
+        );
+        window.location.href = "/dashboard/coming-soon";
+        return;
+      }
+    }
+  }, [user, userProfile, authLoading]);
+
+  // Show loading state while authentication is being checked
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while redirecting
+  if (!user || !userProfile || userProfile.role !== "admin") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Check Firebase connection status
   const checkConnection = useCallback(async () => {
     setConnectionStatus("checking");
@@ -679,6 +726,7 @@ export default function ServiceProvidersPage() {
   const loadProviders = useCallback(async () => {
     setLoading(true);
     try {
+      console.log("🔍 Loading service providers...");
       const isConnected = await checkConnection();
       if (!isConnected) {
         console.warn("Firebase not connected, skipping data load");
@@ -693,16 +741,21 @@ export default function ServiceProvidersPage() {
         return;
       }
 
+      console.log("🔍 Firebase connected, fetching providers...");
       const result = await ServiceProviderService.getProviders({
         status: statusFilter || undefined,
       });
+      console.log("🔍 Providers result:", result);
+      console.log("🔍 Number of providers:", result.providers.length);
       setProviders(result.providers);
 
       // Load stats
+      console.log("🔍 Loading provider stats...");
       const providerStats = await ServiceProviderService.getProviderStats();
+      console.log("🔍 Provider stats:", providerStats);
       setStats(providerStats);
     } catch (error) {
-      console.error("Error loading providers:", error);
+      console.error("❌ Error loading providers:", error);
       setProviders([]);
       setStats({ total: 0, active: 0, inactive: 0, pending: 0, suspended: 0 });
     } finally {
@@ -711,8 +764,11 @@ export default function ServiceProvidersPage() {
   }, [statusFilter, checkConnection]);
 
   useEffect(() => {
-    loadProviders();
-  }, [loadProviders]);
+    // Only load providers when authenticated and has proper role
+    if (user && userProfile && userProfile.role === "admin") {
+      loadProviders();
+    }
+  }, [loadProviders, user, userProfile]);
 
   // Search providers
   const filteredProviders = providers.filter(
@@ -723,12 +779,19 @@ export default function ServiceProvidersPage() {
       provider.businessName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Debug logging for filtered providers
+  useEffect(() => {
+    console.log("🔍 Providers state:", providers);
+    console.log("🔍 Filtered providers:", filteredProviders);
+    console.log("🔍 Search query:", searchQuery);
+    console.log("🔍 Status filter:", statusFilter);
+  }, [providers, filteredProviders, searchQuery, statusFilter]);
+
   // Handle form submission
   const handleFormSubmit = async (
     data: ServiceProviderCreateRequest | ServiceProviderUpdateRequest
   ) => {
     try {
-      const user = auth.currentUser;
       if (!user) {
         alert("You must be logged in to perform this action");
         return;
@@ -769,17 +832,16 @@ export default function ServiceProvidersPage() {
 
   // Handle provider deletion
   const handleDeleteProvider = async (provider: Provider) => {
+    if (!user) {
+      alert("You must be logged in to perform this action");
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete ${provider.name}?`)) {
       return;
     }
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        alert("You must be logged in to perform this action");
-        return;
-      }
-
       const result = await ServiceProviderService.deleteProvider(
         provider.id,
         user.uid
@@ -823,6 +885,31 @@ export default function ServiceProvidersPage() {
         loadProviders();
       }
     });
+  };
+
+  // Handle seed providers
+  const handleSeedProviders = async () => {
+    if (!user) {
+      alert("You must be logged in to perform this action");
+      return;
+    }
+
+    if (!confirm("Are you sure you want to seed the service providers?")) {
+      return;
+    }
+
+    try {
+      const result = await ServiceProviderService.seedServiceProviders();
+      if (result.success) {
+        alert("Service providers seeded successfully!");
+        loadProviders();
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error seeding providers:", error);
+      alert("An error occurred while seeding providers");
+    }
   };
 
   if (loading) {
@@ -1004,8 +1091,64 @@ export default function ServiceProvidersPage() {
             <Plus size={16} />
             Add Provider
           </button>
+
+          <button
+            onClick={handleSeedProviders}
+            disabled={connectionStatus !== "connected"}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            🌱 Seed Providers
+          </button>
         </div>
       </div>
+
+      {/* Debug Information - Remove in production */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="text-yellow-600">
+              <Activity size={16} />
+            </div>
+            <h3 className="text-sm font-medium text-yellow-900">Debug Info</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div>
+              <span className="font-medium">Providers Count:</span>{" "}
+              {providers.length}
+            </div>
+            <div>
+              <span className="font-medium">Filtered Count:</span>{" "}
+              {filteredProviders.length}
+            </div>
+            <div>
+              <span className="font-medium">Connection Status:</span>{" "}
+              {connectionStatus}
+            </div>
+            <div>
+              <span className="font-medium">Loading:</span>{" "}
+              {loading ? "Yes" : "No"}
+            </div>
+            <div>
+              <span className="font-medium">Search Query:</span>{" "}
+              {searchQuery || "None"}
+            </div>
+            <div>
+              <span className="font-medium">Status Filter:</span>{" "}
+              {statusFilter || "None"}
+            </div>
+          </div>
+          {providers.length > 0 && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm font-medium text-yellow-800">
+                Raw Providers Data
+              </summary>
+              <pre className="mt-2 text-xs text-yellow-700 bg-yellow-100 p-2 rounded overflow-auto max-h-40">
+                {JSON.stringify(providers.slice(0, 2), null, 2)}
+              </pre>
+            </details>
+          )}
+        </div>
+      )}
 
       {/* Providers Grid */}
       {connectionStatus === "connected" ? (

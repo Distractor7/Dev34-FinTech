@@ -35,11 +35,40 @@ export class ServiceProviderService {
    */
   private static async checkFirebaseConnection(): Promise<boolean> {
     try {
-      // Try to access Firestore to check connection
-      await getDocs(collection(db, "_health"));
+      // Check if user is authenticated first
+      const { auth } = await import("./firebaseConfig");
+      const currentUser = auth.currentUser;
+
+      if (!currentUser) {
+        console.warn(
+          "⚠️ Firebase connection check failed: User not authenticated"
+        );
+        return false;
+      }
+
+      // Try to access the serviceProviders collection instead of a non-existent _health collection
+      // This will test both connection and permissions
+      const testQuery = query(collection(db, this.COLLECTION_NAME), limit(1));
+      await getDocs(testQuery);
       return true;
-    } catch (error) {
-      console.warn("⚠️ Firebase connection check failed:", error);
+    } catch (error: any) {
+      if (
+        error.code === "permission-denied" ||
+        error.message?.includes("permission-denied")
+      ) {
+        console.warn(
+          "⚠️ Firebase connection check failed: Missing or insufficient permissions"
+        );
+      } else if (
+        error.code === "unauthenticated" ||
+        error.message?.includes("unauthenticated")
+      ) {
+        console.warn(
+          "⚠️ Firebase connection check failed: User not authenticated"
+        );
+      } else {
+        console.warn("⚠️ Firebase connection check failed:", error);
+      }
       return false;
     }
   }
@@ -197,11 +226,11 @@ export class ServiceProviderService {
    */
   static async getProviders(
     params: ServiceProviderSearchParams = {},
-    lastDoc?: QueryDocumentSnapshot<DocumentData>,
+    lastDoc?: QueryDocumentSnapshot<unknown, DocumentData>,
     pageSize: number = this.BATCH_SIZE
   ): Promise<{
     providers: Provider[];
-    lastDoc?: QueryDocumentSnapshot<DocumentData>;
+    lastDoc?: QueryDocumentSnapshot<unknown, DocumentData>;
     hasMore: boolean;
   }> {
     try {
@@ -216,7 +245,7 @@ export class ServiceProviderService {
         return { providers: [], hasMore: false };
       }
 
-      let q = collection(db, this.COLLECTION_NAME);
+      let q: any = collection(db, this.COLLECTION_NAME);
 
       // Build query based on search parameters
       // IMPORTANT: Limit to 2 where clauses to avoid complex composite indexes
@@ -252,19 +281,30 @@ export class ServiceProviderService {
         constraints.push(startAfter(lastDoc));
       }
 
-      constraints.push(limit(pageSize + 1)); // Get one extra to check if there are more
+      // Add limit
+      constraints.push(limit(pageSize));
 
-      const querySnapshot = await getDocs(query(q, ...constraints));
-      console.log(`🔍 Found ${querySnapshot.size} service provider documents`);
+      // Apply constraints to query
+      let finalQuery = q;
+      if (constraints.length > 0) {
+        finalQuery = query(q, ...constraints);
+      }
 
+      const querySnapshot = await getDocs(finalQuery);
       const providers: Provider[] = [];
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        console.log(`🔍 Provider ${doc.id} data:`, data);
-
         // Decrypt sensitive data
         const decryptedData = DataEncryption.decryptProviderData(data);
+
+        // Apply in-memory filtering for complex queries
+        if (hasComplexQuery && params.serviceCategories) {
+          const hasMatchingCategory = params.serviceCategories.some(
+            (category) => decryptedData.serviceCategories?.includes(category)
+          );
+          if (!hasMatchingCategory) return;
+        }
 
         providers.push({
           id: doc.id,
@@ -272,66 +312,45 @@ export class ServiceProviderService {
         } as Provider);
       });
 
-      // Apply additional filters in memory to avoid complex indexes
-      let filteredProviders = providers;
+      return {
+        providers,
+        lastDoc:
+          querySnapshot.docs.length > 0
+            ? querySnapshot.docs[querySnapshot.docs.length - 1]
+            : undefined,
+        hasMore: querySnapshot.docs.length === pageSize,
+      };
+    } catch (error: any) {
+      console.error("❌ Error fetching service providers:", error);
 
+      // Handle specific Firebase errors
       if (
-        hasComplexQuery &&
-        params.serviceCategories &&
-        params.serviceCategories.length > 0
+        error.code === "permission-denied" ||
+        error.message?.includes("permission-denied")
       ) {
-        filteredProviders = providers.filter((provider) =>
-          provider.serviceCategories.some((cat) =>
-            params.serviceCategories!.includes(cat)
-          )
+        console.error(
+          "❌ Permission denied: User doesn't have access to service providers"
+        );
+        throw new Error(
+          "You don't have permission to access service providers. Please contact your administrator."
+        );
+      } else if (
+        error.code === "unauthenticated" ||
+        error.message?.includes("unauthenticated")
+      ) {
+        console.error("❌ User not authenticated");
+        throw new Error("Please log in to access service providers.");
+      } else if (error.code === "resource-exhausted") {
+        console.error("❌ Firestore quota exceeded");
+        throw new Error(
+          "Service temporarily unavailable due to high demand. Please try again later."
+        );
+      } else {
+        console.error("❌ Unexpected error:", error);
+        throw new Error(
+          "Failed to load service providers. Please try again later."
         );
       }
-
-      // Check if there are more documents
-      const hasMore = filteredProviders.length > pageSize;
-      if (hasMore) {
-        filteredProviders.pop(); // Remove the extra document
-      }
-
-      const lastVisible =
-        filteredProviders.length > 0
-          ? querySnapshot.docs[querySnapshot.docs.length - 1]
-          : undefined;
-
-      console.log(
-        `🔍 Returning ${filteredProviders.length} providers out of ${querySnapshot.size} total documents`
-      );
-
-      return {
-        providers: filteredProviders,
-        lastDoc: lastVisible,
-        hasMore,
-      };
-    } catch (error) {
-      console.error("Error fetching service providers:", error);
-
-      // Handle specific Firestore indexing errors
-      if (error instanceof Error) {
-        if (error.message.includes("indexes?create_composite=")) {
-          console.error(
-            "❌ Firestore composite index required. Please create the required indexes in Firebase Console."
-          );
-          console.error(
-            "💡 Index creation URL:",
-            error.message.match(/indexes\?create_composite=[^&\s]+/)?.[0]
-          );
-        } else if (error.message.includes("permission-denied")) {
-          console.error(
-            "❌ Permission denied. Check your Firestore rules and authentication."
-          );
-        } else if (error.message.includes("unavailable")) {
-          console.error(
-            "❌ Firestore service unavailable. Please try again later."
-          );
-        }
-      }
-
-      return { providers: [], hasMore: false };
     }
   }
 
@@ -340,11 +359,11 @@ export class ServiceProviderService {
    */
   static async searchProviders(
     searchQuery: string,
-    lastDoc?: QueryDocumentSnapshot<DocumentData>,
+    lastDoc?: QueryDocumentSnapshot<unknown, DocumentData>,
     pageSize: number = this.BATCH_SIZE
   ): Promise<{
     providers: Provider[];
-    lastDoc?: QueryDocumentSnapshot<DocumentData>;
+    lastDoc?: QueryDocumentSnapshot<unknown, DocumentData>;
     hasMore: boolean;
   }> {
     try {
@@ -563,7 +582,7 @@ export class ServiceProviderService {
     params: ServiceProviderSearchParams = {}
   ): Unsubscribe {
     try {
-      let q = collection(db, this.COLLECTION_NAME);
+      let q: any = collection(db, this.COLLECTION_NAME);
       const constraints: any[] = [];
 
       if (params.status) {
