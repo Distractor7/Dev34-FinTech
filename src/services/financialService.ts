@@ -23,6 +23,10 @@ export interface FinancialSummary {
   totalInvoices: number;
   paidInvoices: number;
   overdueInvoices: number;
+  overdueAmount?: number;
+  pendingAmount?: number;
+  serviceProviderCosts?: number;
+  operationalCosts?: number;
 }
 
 export interface PropertyFinancialData {
@@ -36,6 +40,10 @@ export interface PropertyFinancialData {
   totalInvoices: number;
   paidInvoices: number;
   overdueInvoices: number;
+  overdueAmount?: number;
+  pendingAmount?: number;
+  serviceProviderCosts?: number;
+  operationalCosts?: number;
 }
 
 export interface ProviderFinancialData {

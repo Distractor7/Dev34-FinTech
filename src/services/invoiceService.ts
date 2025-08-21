@@ -237,46 +237,40 @@ export class InvoiceService {
         {
           invoiceNumber: "INV-2024-001",
           propertyId: "prop_knysna_mall",
-          providerId: "prov_parking_plus",
-          description: "Monthly parking maintenance and security services",
-          issueDate: new Date(
-            Date.now() - 30 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          dueDate: new Date(
-            Date.now() - 15 * 24 * 60 * 60 * 1000
-          ).toISOString(),
+          providerId: "prov_cleanpro_services",
+          description: "Monthly cleaning and maintenance services",
+          issueDate: "2024-07-01T00:00:00.000Z",
+          dueDate: "2024-07-31T00:00:00.000Z",
           status: "paid" as const,
-          subtotal: 1250.0,
-          tax: 125.0,
-          total: 1375.0,
+          subtotal: 1600.0,
+          tax: 160.0,
+          total: 1760.0,
           currency: "USD",
           lineItems: [
             {
-              description: "Parking lot cleaning",
+              description: "General cleaning service",
               quantity: 1,
-              unitPrice: 500.0,
-              total: 500.0,
+              unitPrice: 1200.0,
+              total: 1200.0,
               category: "Cleaning",
-              notes: "Monthly deep cleaning service",
+              notes: "Daily cleaning of common areas",
             },
             {
-              description: "Security monitoring",
-              quantity: 30,
-              unitPrice: 25.0,
-              total: 750.0,
-              category: "Security",
-              notes: "Daily security patrols",
+              description: "Maintenance supplies",
+              quantity: 1,
+              unitPrice: 400.0,
+              total: 400.0,
+              category: "Supplies",
+              notes: "Cleaning and maintenance materials",
             },
           ],
-          notes: "Services provided for January 2024",
+          notes: "Monthly cleaning and maintenance contract",
           terms: "Net 30",
           paymentInstructions: "Please pay within 30 days",
-          paidDate: new Date(
-            Date.now() - 20 * 24 * 60 * 60 * 1000
-          ).toISOString(),
+          paidDate: "2024-07-25T00:00:00.000Z",
           paymentMethod: "Bank Transfer",
           paymentReference: "REF-2024-001",
-          tags: ["parking", "security", "monthly"],
+          tags: ["cleaning", "maintenance", "monthly"],
           category: "Maintenance",
           priority: "medium" as const,
           createdBy: "system",
@@ -287,12 +281,8 @@ export class InvoiceService {
           propertyId: "prop_flour_market",
           providerId: "prov_cleanpro_services",
           description: "Deep cleaning and sanitization services",
-          issueDate: new Date(
-            Date.now() - 25 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          dueDate: new Date(
-            Date.now() - 10 * 24 * 60 * 60 * 1000
-          ).toISOString(),
+          issueDate: "2024-08-01T00:00:00.000Z",
+          dueDate: "2024-08-31T00:00:00.000Z",
           status: "paid" as const,
           subtotal: 800.0,
           tax: 80.0,
@@ -319,9 +309,7 @@ export class InvoiceService {
           notes: "Monthly deep cleaning service",
           terms: "Net 30",
           paymentInstructions: "Please pay within 30 days",
-          paidDate: new Date(
-            Date.now() - 18 * 24 * 60 * 60 * 1000
-          ).toISOString(),
+          paidDate: "2024-08-15T00:00:00.000Z",
           paymentMethod: "Check",
           paymentReference: "REF-2024-002",
           tags: ["cleaning", "sanitization", "monthly"],
@@ -335,10 +323,8 @@ export class InvoiceService {
           propertyId: "prop_cavendish_center",
           providerId: "prov_fibernet_solutions",
           description: "Internet service and network maintenance",
-          issueDate: new Date(
-            Date.now() - 20 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          dueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          issueDate: "2024-09-01T00:00:00.000Z",
+          dueDate: "2024-09-15T00:00:00.000Z",
           status: "sent" as const,
           subtotal: 1500.0,
           tax: 150.0,
@@ -376,39 +362,35 @@ export class InvoiceService {
           propertyId: "prop_knysna_mall",
           providerId: "prov_cleanpro_services",
           description: "Monthly cleaning and maintenance services",
-          issueDate: new Date(
-            Date.now() - 15 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+          issueDate: "2024-10-01T00:00:00.000Z",
+          dueDate: "2024-10-31T00:00:00.000Z",
           status: "paid" as const,
-          subtotal: 950.0,
-          tax: 95.0,
-          total: 1045.0,
+          subtotal: 2200.0,
+          tax: 220.0,
+          total: 2420.0,
           currency: "USD",
           lineItems: [
             {
               description: "General cleaning service",
               quantity: 1,
-              unitPrice: 600.0,
-              total: 600.0,
+              unitPrice: 1500.0,
+              total: 1500.0,
               category: "Cleaning",
-              notes: "Monthly comprehensive cleaning",
+              notes: "Daily cleaning of all areas",
             },
             {
-              description: "Maintenance supplies",
+              description: "Maintenance and repairs",
               quantity: 1,
-              unitPrice: 350.0,
-              total: 350.0,
-              category: "Supplies",
-              notes: "Cleaning and maintenance materials",
+              unitPrice: 700.0,
+              total: 700.0,
+              category: "Maintenance",
+              notes: "Monthly maintenance and minor repairs",
             },
           ],
-          notes: "Monthly cleaning and maintenance services",
+          notes: "Monthly cleaning and maintenance contract",
           terms: "Net 30",
           paymentInstructions: "Please pay within 30 days",
-          paidDate: new Date(
-            Date.now() - 10 * 24 * 60 * 60 * 1000
-          ).toISOString(),
+          paidDate: "2024-10-25T00:00:00.000Z",
           paymentMethod: "Bank Transfer",
           paymentReference: "REF-2024-004",
           tags: ["cleaning", "maintenance", "monthly"],
@@ -422,12 +404,8 @@ export class InvoiceService {
           propertyId: "prop_flour_market",
           providerId: "prov_parking_plus",
           description: "Parking lot maintenance and security",
-          issueDate: new Date(
-            Date.now() - 10 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          dueDate: new Date(
-            Date.now() + 20 * 24 * 60 * 60 * 1000
-          ).toISOString(),
+          issueDate: "2024-08-15T00:00:00.000Z",
+          dueDate: "2024-08-31T00:00:00.000Z",
           status: "paid" as const,
           subtotal: 800.0,
           tax: 80.0,
@@ -465,12 +443,8 @@ export class InvoiceService {
           propertyId: "prop_cavendish_center",
           providerId: "prov_fibernet_solutions",
           description: "Internet service and network maintenance",
-          issueDate: new Date(
-            Date.now() - 8 * 24 * 60 * 60 * 1000
-          ).toISOString(),
-          dueDate: new Date(
-            Date.now() + 22 * 24 * 60 * 60 * 1000
-          ).toISOString(),
+          issueDate: "2024-09-15T00:00:00.000Z",
+          dueDate: "2024-09-30T00:00:00.000Z",
           status: "overdue" as const,
           subtotal: 550.0,
           tax: 55.0,
@@ -657,7 +631,7 @@ export class InvoiceService {
     });
 
     return invoices.filter((invoice) => {
-      const invoiceDate = new Date(invoice.dueDate); // Changed from issueDate to dueDate
+      const invoiceDate = new Date(invoice.dueDate);
       const invoiceYear = invoiceDate.getFullYear().toString();
       const invoiceMonth = (invoiceDate.getMonth() + 1)
         .toString()
@@ -666,9 +640,26 @@ export class InvoiceService {
       const yearMatch = !year || year === "all" || invoiceYear === year;
       const monthMatch = !month || month === "all" || invoiceMonth === month;
 
+      console.log("🔍 Processing invoice:", {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        propertyId: invoice.propertyId,
+        dueDate: invoice.dueDate,
+        parsedDate: invoiceDate,
+        invoiceYear,
+        invoiceMonth,
+        yearMatch,
+        monthMatch,
+        yearFilter: year,
+        monthFilter: month,
+        willInclude: yearMatch && monthMatch,
+      });
+
       if (!yearMatch || !monthMatch) {
         console.log("🔍 Invoice filtered out:", {
           id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          propertyId: invoice.propertyId,
           dueDate: invoice.dueDate,
           parsedDate: invoiceDate,
           invoiceYear,

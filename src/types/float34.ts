@@ -226,6 +226,8 @@ export type PropertyRankItem = {
   profit?: number;
   marginPct?: number;
   invoicesPaidPct?: number;
+  invoiceCount?: number;
+  paidInvoiceCount?: number;
 };
 
 export type Invoice = {
@@ -289,4 +291,19 @@ export type Invoice = {
     type: string;
     uploadedAt: string;
   }[];
+};
+
+export type FinancialSummary = {
+  revenue: number;
+  profit?: number;
+  marginPct?: number;
+  invoicesPaidPct?: number;
+  overdueAmount?: number;
+  pendingAmount?: number;
+  totalInvoices?: number;
+  paidInvoices?: number;
+  overdueInvoices?: number;
+  expenses?: number;
+  serviceProviderCosts?: number;
+  operationalCosts?: number;
 };

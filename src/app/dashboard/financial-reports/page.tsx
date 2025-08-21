@@ -13,6 +13,7 @@ import {
   ArrowRight,
   X,
   FileText,
+  Receipt,
 } from "lucide-react";
 import { Property, PeriodGranularity, PropertyRankItem } from "@/types/float34";
 import FinancialService, {
@@ -147,6 +148,7 @@ export default function FinancialReportsPage() {
   // Simple state
   const [properties, setProperties] = useState<Property[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [serviceProviders, setServiceProviders] = useState<any[]>([]);
   const [financialData, setFinancialData] = useState<{
     summary: {
       revenue: number;
@@ -154,6 +156,13 @@ export default function FinancialReportsPage() {
       profit?: number;
       marginPct?: number;
       invoicesPaidPct?: number;
+      overdueAmount?: number;
+      pendingAmount?: number;
+      totalInvoices?: number;
+      paidInvoices?: number;
+      overdueInvoices?: number;
+      serviceProviderCosts?: number;
+      operationalCosts?: number;
     };
     byProperty: PropertyRankItem[];
     series?: any[];
@@ -183,6 +192,25 @@ export default function FinancialReportsPage() {
     (p) => p.id === searchParams.get("propertyId")
   );
 
+  // Helper function to get month name from month number
+  const getMonthName = (month: string) => {
+    const monthNames = {
+      "01": "January",
+      "02": "February",
+      "03": "March",
+      "04": "April",
+      "05": "May",
+      "06": "June",
+      "07": "July",
+      "08": "August",
+      "09": "September",
+      "10": "October",
+      "11": "November",
+      "12": "December",
+    };
+    return monthNames[month as keyof typeof monthNames] || month;
+  };
+
   // Fetch data
   const fetchData = useCallback(
     async (selectedPropertyId?: string) => {
@@ -190,6 +218,13 @@ export default function FinancialReportsPage() {
       try {
         // Get properties from PropertyService
         const propertiesData = await PropertyService.getProperties({});
+
+        // Get service providers
+        const { ServiceProviderService } = await import(
+          "@/services/serviceProviderService"
+        );
+        const providersResponse = await ServiceProviderService.getProviders();
+        const providersData = providersResponse?.providers || [];
 
         // Get invoice data directly from InvoiceService (same as invoices page)
         const [invoicesData, invoiceStats] = await Promise.all([
@@ -200,24 +235,50 @@ export default function FinancialReportsPage() {
         console.log("🔍 Debug - Invoices:", invoicesData);
         console.log("🔍 Debug - Invoice Stats:", invoiceStats);
         console.log("🔍 Debug - Properties:", propertiesData);
+        console.log("🔍 Debug - Service Providers:", providersData);
 
         setProperties(propertiesData);
         setInvoices(invoicesData);
+        setServiceProviders(providersData);
 
         // Filter invoices by selected property if specified
         const filteredInvoices = selectedPropertyId
           ? invoicesData.filter((inv) => inv.propertyId === selectedPropertyId)
           : invoicesData;
 
+        // Apply service provider filter
+        const providerId = searchParams.get("providerId");
+        const providerFilteredInvoices = providerId
+          ? filteredInvoices.filter((inv) => inv.providerId === providerId)
+          : filteredInvoices;
+
+        // Apply status filter
+        const status = searchParams.get("status");
+        const statusFilteredInvoices = status
+          ? providerFilteredInvoices.filter((inv) => inv.status === status)
+          : providerFilteredInvoices;
+
         // Apply date filtering
         const dateFilteredInvoices = InvoiceService.filterInvoicesByDate(
-          filteredInvoices,
+          statusFilteredInvoices,
           yearFilter !== "all" ? yearFilter : undefined,
           monthFilter !== "all" ? monthFilter : undefined
         );
 
-        console.log("🔍 Debug - Selected Property ID:", selectedPropertyId);
-        console.log("🔍 Debug - Filtered Invoices:", dateFilteredInvoices);
+        console.log("🔍 Debug - Filter Values:", {
+          propertyId: selectedPropertyId,
+          providerId: providerId,
+          status: status,
+          yearFilter: yearFilter,
+          monthFilter: monthFilter,
+        });
+        console.log("🔍 Debug - Filter Results:", {
+          totalInvoices: invoicesData.length,
+          afterPropertyFilter: filteredInvoices.length,
+          afterProviderFilter: providerFilteredInvoices.length,
+          afterStatusFilter: statusFilteredInvoices.length,
+          afterDateFilter: dateFilteredInvoices.length,
+        });
         console.log(
           "🔍 Debug - All Invoices Property IDs:",
           invoicesData.map((inv) => inv.propertyId)
@@ -229,7 +290,7 @@ export default function FinancialReportsPage() {
         console.log("🔍 Debug - Invoice Count:", invoicesData.length);
         console.log("🔍 Debug - Properties Count:", propertiesData.length);
 
-        // Calculate summary based on filtered invoices
+        // Calculate financial metrics
         const filteredTotalAmount = dateFilteredInvoices.reduce(
           (sum, inv) => sum + inv.total,
           0
@@ -237,18 +298,50 @@ export default function FinancialReportsPage() {
         const filteredPaidAmount = dateFilteredInvoices
           .filter((inv) => inv.status === "paid")
           .reduce((sum, inv) => sum + inv.total, 0);
+        const filteredOverdueAmount = dateFilteredInvoices
+          .filter((inv) => inv.status === "overdue")
+          .reduce((sum, inv) => sum + inv.total, 0);
+        const filteredSentAmount = dateFilteredInvoices
+          .filter((inv) => inv.status === "sent")
+          .reduce((sum, inv) => sum + inv.total, 0);
+        const filteredDraftAmount = dateFilteredInvoices
+          .filter((inv) => inv.status === "draft")
+          .reduce((sum, inv) => sum + inv.total, 0);
+
+        // Calculate expenses and profit with more realistic assumptions
+        const estimatedExpenses = filteredTotalAmount * 0.25; // 25% of revenue for operational costs
+        const actualProfit = filteredTotalAmount - estimatedExpenses;
+        const actualMarginPct =
+          filteredTotalAmount > 0
+            ? (actualProfit / filteredTotalAmount) * 100
+            : 0;
+
+        // Calculate additional expense breakdowns
+        const serviceProviderCosts = filteredTotalAmount * 0.15; // 15% for service provider payments
+        const operationalCosts = filteredTotalAmount * 0.1; // 10% for other operational expenses
 
         // Transform invoice data to match expected format
         const transformedFinancialData = {
           summary: {
             revenue: filteredTotalAmount,
-            expenses: filteredTotalAmount * 0.3, // 30% assumption for now
-            profit: filteredTotalAmount * 0.7, // 70% of revenue
-            marginPct: 70.0, // Fixed margin for now
+            profit: actualProfit,
+            marginPct: actualMarginPct,
             invoicesPaidPct:
               filteredTotalAmount > 0
                 ? (filteredPaidAmount / filteredTotalAmount) * 100
                 : 0,
+            overdueAmount: filteredOverdueAmount,
+            pendingAmount: filteredSentAmount + filteredDraftAmount,
+            totalInvoices: dateFilteredInvoices.length,
+            paidInvoices: dateFilteredInvoices.filter(
+              (inv) => inv.status === "paid"
+            ).length,
+            overdueInvoices: dateFilteredInvoices.filter(
+              (inv) => inv.status === "overdue"
+            ).length,
+            expenses: estimatedExpenses,
+            serviceProviderCosts: serviceProviderCosts,
+            operationalCosts: operationalCosts,
           },
           byProperty: selectedPropertyId
             ? // If property is selected, show only that property
@@ -284,6 +377,8 @@ export default function FinancialReportsPage() {
                       propertyRevenue > 0
                         ? (propertyPaidAmount / propertyRevenue) * 100
                         : 0,
+                    invoiceCount: propertyInvoices.length,
+                    paidInvoiceCount: propertyPaidInvoices.length,
                   },
                 ];
               })()
@@ -316,6 +411,8 @@ export default function FinancialReportsPage() {
                       propertyRevenue > 0
                         ? (propertyPaidAmount / propertyRevenue) * 100
                         : 0,
+                    invoiceCount: propertyInvoices.length,
+                    paidInvoiceCount: propertyPaidInvoices.length,
                   };
                 })
                 .filter((prop) => prop.revenue > 0), // Only show properties with invoices
@@ -329,8 +426,8 @@ export default function FinancialReportsPage() {
         setLoading(false);
       }
     },
-    [yearFilter, monthFilter]
-  ); // Stable dependency array - no dependencies needed
+    [yearFilter, monthFilter, searchParams]
+  ); // Added searchParams to dependencies
 
   // Initial data fetch and refetch when property filter changes
   useEffect(() => {
@@ -782,7 +879,8 @@ export default function FinancialReportsPage() {
             Financial Reports
           </h1>
           <p className="text-gray-600">
-            Complete financial overview from all invoices in the system
+            Executive financial dashboard with property performance analysis,
+            revenue tracking, and payment insights
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -823,6 +921,55 @@ export default function FinancialReportsPage() {
                 router.push(`${pathname}?${params.toString()}`);
               }}
             />
+          </div>
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Service Provider
+            </label>
+            <select
+              value={searchParams.get("providerId") || "all"}
+              onChange={(e) => {
+                const params = new URLSearchParams(searchParams);
+                if (e.target.value !== "all") {
+                  params.set("providerId", e.target.value);
+                } else {
+                  params.delete("providerId");
+                }
+                router.push(`${pathname}?${params.toString()}`);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Service Providers</option>
+              {serviceProviders.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Invoice Status
+            </label>
+            <select
+              value={searchParams.get("status") || "all"}
+              onChange={(e) => {
+                const params = new URLSearchParams(searchParams);
+                if (e.target.value !== "all") {
+                  params.set("status", e.target.value);
+                } else {
+                  params.delete("status");
+                }
+                router.push(`${pathname}?${params.toString()}`);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Statuses</option>
+              <option value="paid">Paid</option>
+              <option value="sent">Sent</option>
+              <option value="overdue">Overdue</option>
+              <option value="draft">Draft</option>
+            </select>
           </div>
           <div className="flex-1 min-w-0">
             <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -867,6 +1014,73 @@ export default function FinancialReportsPage() {
           </div>
         </div>
 
+        {/* Clear Filters Button */}
+        {(searchParams.get("propertyId") ||
+          searchParams.get("providerId") ||
+          searchParams.get("status") ||
+          yearFilter !== "all" ||
+          monthFilter !== "all") && (
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={() => {
+                setYearFilter("all");
+                setMonthFilter("all");
+                router.push(pathname);
+              }}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300"
+            >
+              Clear All Filters
+            </button>
+          </div>
+        )}
+
+        {/* Active Filters Display */}
+        {(searchParams.get("propertyId") ||
+          searchParams.get("providerId") ||
+          searchParams.get("status") ||
+          yearFilter !== "all" ||
+          monthFilter !== "all") && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="text-sm font-medium text-blue-800 mb-2">
+              Active Filters:
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {searchParams.get("propertyId") && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Property:{" "}
+                  {properties.find(
+                    (p) => p.id === searchParams.get("propertyId")
+                  )?.name || searchParams.get("propertyId")}
+                </span>
+              )}
+              {searchParams.get("providerId") && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Provider:{" "}
+                  {serviceProviders.find(
+                    (p) => p.id === searchParams.get("providerId")
+                  )?.name || searchParams.get("providerId")}
+                </span>
+              )}
+              {searchParams.get("status") && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  Status: {searchParams.get("status")?.charAt(0).toUpperCase()}
+                  {searchParams.get("status")?.slice(1)}
+                </span>
+              )}
+              {yearFilter !== "all" && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  Year: {yearFilter}
+                </span>
+              )}
+              {monthFilter !== "all" && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                  Month: {getMonthName(monthFilter)}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Simple Summary - No Date Range */}
         <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
           <Calendar size={16} />
@@ -890,54 +1104,227 @@ export default function FinancialReportsPage() {
             )}
           </span>
         </div>
+
+        {/* Enhanced Data Scope Summary */}
+        {summary.revenue > 0 && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-blue-600 font-medium">Data Scope:</span>
+                <div className="text-blue-800">
+                  {searchParams.get("propertyId")
+                    ? "Single Property"
+                    : "All Properties"}
+                  {searchParams.get("providerId") && " + Service Provider"}
+                  {searchParams.get("status") &&
+                    ` + ${searchParams
+                      .get("status")
+                      ?.charAt(0)
+                      .toUpperCase()}${searchParams
+                      .get("status")
+                      ?.slice(1)} Status`}
+                  {yearFilter !== "all" && ` + ${yearFilter}`}
+                  {monthFilter !== "all" && ` + ${getMonthName(monthFilter)}`}
+                </div>
+              </div>
+              <div>
+                <span className="text-blue-600 font-medium">
+                  Total Invoices:
+                </span>
+                <div className="text-blue-800">
+                  {summary.totalInvoices || 0}
+                </div>
+              </div>
+              <div>
+                <span className="text-blue-600 font-medium">Payment Rate:</span>
+                <div className="text-blue-800">
+                  {(summary.invoicesPaidPct || 0).toFixed(1)}%
+                </div>
+              </div>
+              <div>
+                <span className="text-blue-600 font-medium">Overdue:</span>
+                <div className="text-blue-800">
+                  {summary.overdueInvoices || 0} invoices
+                </div>
+                {summary.expenses && summary.expenses > 0 && (
+                  <div>
+                    <span className="text-orange-600 font-medium">
+                      Expenses:
+                    </span>
+                    <div className="text-orange-800">
+                      {formatCurrency(summary.expenses)} (
+                      {((summary.expenses / summary.revenue) * 100).toFixed(1)}%
+                      of revenue)
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KPICard
-          title="Revenue"
+          title="Total Revenue"
           value={formatCurrency(summary.revenue)}
+          subtitle={`${summary.totalInvoices || 0} invoices`}
           icon={<DollarSign size={24} />}
           iconBg="bg-green-100"
           iconColor="text-green-600"
         />
 
-        {summary.expenses !== undefined && (
-          <KPICard
-            title="Expenses"
-            value={formatCurrency(summary.expenses)}
-            icon={<DollarSign size={24} />}
-            iconBg="bg-red-100"
-            iconColor="text-red-600"
-          />
-        )}
-
-        {summary.profit !== undefined && (
-          <KPICard
-            title="Profit"
-            value={formatCurrency(summary.profit)}
-            subtitle={
-              summary.marginPct
-                ? `${summary.marginPct.toFixed(1)}% margin`
-                : undefined
-            }
-            icon={<TrendingUp size={24} />}
-            iconBg="bg-blue-100"
-            iconColor="text-blue-600"
-          />
-        )}
+        <KPICard
+          title="Net Profit"
+          value={formatCurrency(summary.profit || 0)}
+          subtitle={`${summary.marginPct?.toFixed(1) || 0}% margin`}
+          icon={<TrendingUp size={24} />}
+          iconBg="bg-blue-100"
+          iconColor="text-blue-600"
+        />
 
         <KPICard
-          title="Invoices"
-          value={`${Math.round(summary.invoicesPaidPct || 0)}% paid`}
-          subtitle={`${(summary.invoicesPaidPct || 0).toFixed(
-            1
-          )}% payment rate`}
+          title="Total Expenses"
+          value={formatCurrency(summary.expenses || 0)}
+          subtitle={`${
+            summary.serviceProviderCosts
+              ? formatCurrency(summary.serviceProviderCosts)
+              : "N/A"
+          } provider costs`}
+          icon={<Receipt size={24} />}
+          iconBg="bg-orange-100"
+          iconColor="text-orange-600"
+        />
+
+        <KPICard
+          title="Payment Rate"
+          value={`${Math.round(summary.invoicesPaidPct || 0)}%`}
+          subtitle={`${summary.paidInvoices || 0}/${
+            summary.totalInvoices || 0
+          } invoices paid`}
           icon={<BarChart3 size={24} />}
           iconBg="bg-purple-100"
           iconColor="text-purple-600"
         />
+
+        <KPICard
+          title="Overdue Amount"
+          value={formatCurrency(summary.overdueAmount || 0)}
+          subtitle={`${summary.overdueInvoices || 0} overdue invoices`}
+          icon={<Calendar size={24} />}
+          iconBg="bg-red-100"
+          iconColor="text-red-600"
+        />
       </div>
+
+      {/* Expense Breakdown */}
+      {summary.expenses && summary.expenses > 0 && (
+        <div className="mb-8 p-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg">
+          <h3 className="text-lg font-semibold text-orange-900 mb-4">
+            Expense Breakdown
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600 mb-1">
+                {formatCurrency(summary.expenses)}
+              </div>
+              <div className="text-sm text-orange-800">Total Expenses</div>
+              <div className="text-xs text-orange-600 mt-1">
+                {summary.revenue > 0
+                  ? `${((summary.expenses / summary.revenue) * 100).toFixed(
+                      1
+                    )}% of revenue`
+                  : "N/A"}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600 mb-1">
+                {formatCurrency(summary.serviceProviderCosts || 0)}
+              </div>
+              <div className="text-sm text-orange-800">
+                Service Provider Costs
+              </div>
+              <div className="text-xs text-orange-600 mt-1">
+                {summary.revenue > 0
+                  ? `${(
+                      ((summary.serviceProviderCosts || 0) / summary.revenue) *
+                      100
+                    ).toFixed(1)}% of revenue`
+                  : "N/A"}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600 mb-1">
+                {formatCurrency(summary.operationalCosts || 0)}
+              </div>
+              <div className="text-sm text-orange-800">Operational Costs</div>
+              <div className="text-xs text-orange-600 mt-1">
+                {summary.revenue > 0
+                  ? `${(
+                      ((summary.operationalCosts || 0) / summary.revenue) *
+                      100
+                    ).toFixed(1)}% of revenue`
+                  : "N/A"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Summary Insights */}
+      {summary.revenue > 0 && (
+        <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+          <h3 className="text-lg font-semibold text-blue-900 mb-4">
+            Key Insights
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 mb-1">
+                {summary.marginPct?.toFixed(1) || 0}%
+              </div>
+              <div className="text-sm text-blue-800">Profit Margin</div>
+              <div className="text-xs text-blue-600 mt-1">
+                {summary.marginPct && summary.marginPct > 20
+                  ? "Excellent"
+                  : summary.marginPct && summary.marginPct > 10
+                  ? "Good"
+                  : summary.marginPct && summary.marginPct > 0
+                  ? "Fair"
+                  : "Needs Attention"}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 mb-1">
+                {(summary.invoicesPaidPct || 0).toFixed(1)}%
+              </div>
+              <div className="text-sm text-green-800">Payment Rate</div>
+              <div className="text-xs text-green-600 mt-1">
+                {summary.invoicesPaidPct && summary.invoicesPaidPct > 80
+                  ? "Excellent"
+                  : summary.invoicesPaidPct && summary.invoicesPaidPct > 60
+                  ? "Good"
+                  : summary.invoicesPaidPct && summary.invoicesPaidPct > 40
+                  ? "Fair"
+                  : "Needs Attention"}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-600 mb-1">
+                {summary.overdueInvoices || 0}
+              </div>
+              <div className="text-sm text-red-800">Overdue Invoices</div>
+              <div className="text-xs text-red-600 mt-1">
+                {summary.overdueInvoices === 0
+                  ? "All Caught Up"
+                  : summary.overdueInvoices && summary.overdueInvoices < 3
+                  ? "Manageable"
+                  : "Action Required"}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Top Properties Table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-8">
@@ -963,6 +1350,9 @@ export default function FinancialReportsPage() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Margin %
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Invoices
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Invoices Paid %
@@ -1004,6 +1394,31 @@ export default function FinancialReportsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
+                      <div className="font-medium">
+                        {property.invoiceCount || 0}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {property.paidInvoiceCount || 0} paid /{" "}
+                        {property.invoiceCount || 0} total
+                      </div>
+                      {property.invoiceCount && property.invoiceCount > 0 && (
+                        <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${
+                                ((property.paidInvoiceCount || 0) /
+                                  property.invoiceCount) *
+                                100
+                              }%`,
+                            }}
+                          ></div>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
                       {property.invoicesPaidPct
                         ? `${property.invoicesPaidPct.toFixed(1)}%`
                         : "N/A"}
@@ -1021,6 +1436,81 @@ export default function FinancialReportsPage() {
                 </tr>
               ))}
             </tbody>
+            {byProperty.length > 1 && (
+              <tfoot className="bg-gray-50">
+                <tr className="font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div className="flex items-center">
+                      <Building className="text-gray-400 mr-2" size={16} />
+                      <span>Total (All Properties)</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrency(
+                      byProperty.reduce((sum, p) => sum + p.revenue, 0)
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {formatCurrency(
+                      byProperty.reduce((sum, p) => sum + (p.profit || 0), 0)
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {(() => {
+                      const totalRevenue = byProperty.reduce(
+                        (sum, p) => sum + p.revenue,
+                        0
+                      );
+                      const totalProfit = byProperty.reduce(
+                        (sum, p) => sum + (p.profit || 0),
+                        0
+                      );
+                      return totalRevenue > 0
+                        ? `${((totalProfit / totalRevenue) * 100).toFixed(1)}%`
+                        : "N/A";
+                    })()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div className="font-medium">
+                      {byProperty.reduce(
+                        (sum, p) => sum + (p.invoiceCount || 0),
+                        0
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {byProperty.reduce(
+                        (sum, p) => sum + (p.paidInvoiceCount || 0),
+                        0
+                      )}{" "}
+                      paid /{" "}
+                      {byProperty.reduce(
+                        (sum, p) => sum + (p.invoiceCount || 0),
+                        0
+                      )}{" "}
+                      total
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {(() => {
+                      const totalInvoices = byProperty.reduce(
+                        (sum, p) => sum + (p.invoiceCount || 0),
+                        0
+                      );
+                      const totalPaid = byProperty.reduce(
+                        (sum, p) => sum + (p.paidInvoiceCount || 0),
+                        0
+                      );
+                      return totalInvoices > 0
+                        ? `${((totalPaid / totalInvoices) * 100).toFixed(1)}%`
+                        : "N/A";
+                    })()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {/* Empty cell for actions */}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
@@ -1421,23 +1911,6 @@ export default function FinancialReportsPage() {
           </div>
         </div>
       </div>
-
-      {/* Debug Section - Remove this after testing */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="bg-gray-100 rounded-lg p-4 mt-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-2">
-            Debug Info
-          </h3>
-          <div className="text-xs text-gray-600 space-y-1">
-            <div>Invoices Count: {financialData?.byProperty.length || 0}</div>
-            <div>Properties Count: {properties.length}</div>
-            <div>
-              Selected Property: {searchParams.get("propertyId") || "None"}
-            </div>
-            <div>Total Revenue: ${financialData?.summary.revenue || 0}</div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
