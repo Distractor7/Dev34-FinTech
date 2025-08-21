@@ -474,11 +474,9 @@ function GranularityTabs({
 // Revenue Trend Line Chart Component
 function RevenueTrendChart({
   series,
-  granularity,
   height = "h-80",
 }: {
   series: any[];
-  granularity: PeriodGranularity;
   height?: string;
 }) {
   if (!series || series.length === 0) {
@@ -517,90 +515,41 @@ function RevenueTrendChart({
     // Use aggregated data for all properties view
     chartData = aggregatedSeries.trend
       .map((item: any) => ({
-        period: formatPeriodLabel(item.label, granularity),
+        period: formatPeriodLabel(item.label, "MONTH"),
         revenue: item.revenue,
         shortLabel: item.label,
       }))
       .sort((a: any, b: any) => a.shortLabel.localeCompare(b.shortLabel));
 
     // Apply appropriate slicing based on granularity
-    if (granularity === "WEEK" || granularity === "MONTH") {
+    if (chartData.length > 8) {
       chartData = chartData.slice(-8); // Show last 8 periods
     }
   } else {
-    // Fallback to individual property/provider aggregation
-    if (granularity === "WEEK") {
-      // For weekly view, aggregate data across all items for each week
-      const weeklyData: { [key: string]: number } = {};
+    // Fallback to individual property/provider aggregation - Monthly only
+    // For monthly view, aggregate data across all items for each month
+    const monthlyData: { [key: string]: number } = {};
 
-      series.forEach((item) => {
-        if (item.trend && Array.isArray(item.trend)) {
-          item.trend.forEach((trendItem: any) => {
-            if (!weeklyData[trendItem.label]) {
-              weeklyData[trendItem.label] = 0;
-            }
-            weeklyData[trendItem.label] += trendItem.revenue || 0;
-          });
-        }
-      });
+    series.forEach((item) => {
+      if (item.trend && Array.isArray(item.trend)) {
+        item.trend.forEach((trendItem: any) => {
+          if (!monthlyData[trendItem.label]) {
+            monthlyData[trendItem.label] = 0;
+          }
+          monthlyData[trendItem.label] += trendItem.revenue || 0;
+        });
+      }
+    });
 
-      // Convert to chart format and sort by week
-      chartData = Object.entries(weeklyData)
-        .map(([label, revenue]) => ({
-          period: formatPeriodLabel(label, granularity),
-          revenue,
-          shortLabel: label,
-        }))
-        .sort((a, b) => a.shortLabel.localeCompare(b.shortLabel))
-        .slice(-8); // Show last 8 weeks
-    } else if (granularity === "YEAR") {
-      // For yearly view, aggregate data across all items for each year
-      const yearlyData: { [key: string]: number } = {};
-
-      series.forEach((item) => {
-        if (item.trend && Array.isArray(item.trend)) {
-          item.trend.forEach((trendItem: any) => {
-            if (!yearlyData[trendItem.label]) {
-              yearlyData[trendItem.label] = 0;
-            }
-            yearlyData[trendItem.label] += trendItem.revenue || 0;
-          });
-        }
-      });
-
-      // Convert to chart format and sort by year
-      chartData = Object.entries(yearlyData)
-        .map(([label, revenue]) => ({
-          period: formatPeriodLabel(label, granularity),
-          revenue,
-          shortLabel: label,
-        }))
-        .sort((a, b) => a.shortLabel.localeCompare(b.shortLabel));
-    } else {
-      // For monthly view, aggregate data across all items for each month
-      const monthlyData: { [key: string]: number } = {};
-
-      series.forEach((item) => {
-        if (item.trend && Array.isArray(item.trend)) {
-          item.trend.forEach((trendItem: any) => {
-            if (!monthlyData[trendItem.label]) {
-              monthlyData[trendItem.label] = 0;
-            }
-            monthlyData[trendItem.label] += trendItem.revenue || 0;
-          });
-        }
-      });
-
-      // Convert to chart format and sort by month
-      chartData = Object.entries(monthlyData)
-        .map(([label, revenue]) => ({
-          period: formatPeriodLabel(label, granularity),
-          revenue,
-          shortLabel: label,
-        }))
-        .sort((a, b) => a.shortLabel.localeCompare(b.shortLabel))
-        .slice(-8); // Show last 8 months
-    }
+    // Convert to chart format and sort by month
+    chartData = Object.entries(monthlyData)
+      .map(([label, revenue]) => ({
+        period: formatPeriodLabel(label, "MONTH"),
+        revenue,
+        shortLabel: label,
+      }))
+      .sort((a, b) => a.shortLabel.localeCompare(b.shortLabel))
+      .slice(-8); // Show last 8 months
   }
 
   // If we still don't have chart data, try to create it from the series items themselves
@@ -646,9 +595,7 @@ function RevenueTrendChart({
       <div className="flex items-center gap-3 mb-4">
         <LineChart className="text-blue-600" size={24} />
         <h3 className="text-lg font-medium text-gray-900">Revenue Trend</h3>
-        <span className="text-sm text-gray-500 capitalize">
-          ({granularity.toLowerCase()})
-        </span>
+        <span className="text-sm text-gray-500 capitalize">(monthly)</span>
       </div>
 
       {/* Line Chart */}
@@ -1327,11 +1274,9 @@ function FilterValidation({
 // Fallback Chart Component for when trend data is missing
 function FallbackRevenueChart({
   series,
-  granularity,
   height = "h-80",
 }: {
   series: any[];
-  granularity: PeriodGranularity;
   height?: string;
 }) {
   if (!series || series.length === 0) {
@@ -1383,9 +1328,7 @@ function FallbackRevenueChart({
       <div className="flex items-center gap-3 mb-4">
         <BarChart3 className="text-blue-600" size={24} />
         <h3 className="text-lg font-medium text-gray-900">Revenue Overview</h3>
-        <span className="text-sm text-gray-500 capitalize">
-          ({granularity.toLowerCase()})
-        </span>
+        <span className="text-sm text-gray-500 capitalize">(monthly)</span>
       </div>
 
       {/* Bar Chart */}
@@ -1466,9 +1409,6 @@ export default function AnalyticsPage() {
   // URL state
   const propertyId = searchParams.get("propertyId") || "";
   const providerId = searchParams.get("providerId") || "";
-  const granularity = (searchParams.get("g") as PeriodGranularity) || "MONTH";
-  const from = searchParams.get("from") || ""; // Empty string means no date filter - show all data
-  const to = searchParams.get("to") || ""; // Empty string means no date filter - show all data
   const yearFilter = searchParams.get("year") || "all";
   const monthFilter = searchParams.get("month") || "all";
 
@@ -1565,9 +1505,10 @@ export default function AnalyticsPage() {
       console.log("🔍 Current filters:", {
         propertyId,
         providerId,
-        granularity,
-        from,
-        to,
+        yearFilter,
+        monthFilter,
+        status: searchParams.get("status"),
+        search: searchParams.get("search"),
       });
 
       const api = getApi();
@@ -1576,9 +1517,9 @@ export default function AnalyticsPage() {
       const data = await api.getCombinedFinancials({
         propertyId: propertyId || undefined,
         providerId: providerId || undefined,
-        granularity,
-        from: from || "2024-01", // Provide default value if empty
-        to: to || new Date().toISOString().split("T")[0], // Provide default value if empty
+        granularity: "MONTH", // Fixed to monthly for now
+        from: "2024-01", // Fixed start date
+        to: new Date().toISOString().split("T")[0], // Current date
       });
 
       console.log("🔍 Financial data received:", data);
@@ -1640,7 +1581,7 @@ export default function AnalyticsPage() {
     if (user && userProfile && userProfile.role === "admin") {
       fetchData();
     }
-  }, [user, userProfile, propertyId, providerId, granularity, from, to]);
+  }, [user, userProfile, propertyId, providerId, yearFilter, monthFilter]);
 
   // Fetch properties only when authenticated
   useEffect(() => {
@@ -1749,20 +1690,10 @@ export default function AnalyticsPage() {
     updateSearchParams({ providerId: value || null });
   };
 
-  const handleGranularityChange = (value: PeriodGranularity) => {
-    updateSearchParams({ g: value });
-  };
-
-  const handlePeriodChange = (value: string) => {
-    updateSearchParams({ from: value });
-  };
-
   const clearAllFilters = () => {
     updateSearchParams({
       propertyId: null,
       providerId: null,
-      g: "MONTH",
-      from: "2024-01",
       year: null,
       month: null,
       status: null,
@@ -1890,9 +1821,17 @@ export default function AnalyticsPage() {
 
   const { summary, byProperty, series } = financialData;
 
-  const timePeriodText = from
-    ? formatPeriodLabel(from, granularity)
-    : "All time data";
+  const timePeriodText = (() => {
+    if (yearFilter !== "all" && monthFilter !== "all") {
+      return `${getMonthName(monthFilter)} ${yearFilter}`;
+    } else if (yearFilter !== "all") {
+      return yearFilter;
+    } else if (monthFilter !== "all") {
+      return getMonthName(monthFilter);
+    } else {
+      return "All time data";
+    }
+  })();
 
   return (
     <div className="p-6">
@@ -2088,51 +2027,36 @@ export default function AnalyticsPage() {
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Time Period
             </label>
-            <PeriodSelector
-              granularity={granularity}
-              value={from}
-              onChange={handlePeriodChange}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Year
-            </label>
-            <select
-              value={yearFilter}
-              onChange={(e) =>
-                updateSearchParams({ year: e.target.value || null })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Years</option>
-              {availableYears.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Month
-            </label>
-            <select
-              value={monthFilter}
-              onChange={(e) =>
-                updateSearchParams({ month: e.target.value || null })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Months</option>
-              {availableMonths.map((month) => (
-                <option key={month} value={month}>
-                  {getMonthName(month)}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={yearFilter}
+                onChange={(e) =>
+                  updateSearchParams({ year: e.target.value || null })
+                }
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Years</option>
+                {availableYears.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={monthFilter}
+                onChange={(e) =>
+                  updateSearchParams({ month: e.target.value || null })
+                }
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Months</option>
+                {availableMonths.map((month) => (
+                  <option key={month} value={month}>
+                    {getMonthName(month)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex-1 min-w-0">
@@ -2160,20 +2084,17 @@ export default function AnalyticsPage() {
             </select>
           </div>
 
-          <div>
+          <div className="flex-1">
             <label className="block text-xs font-medium text-gray-700 mb-1">
               Report Type
             </label>
-            <GranularityTabs
-              value={granularity}
-              onChange={handleGranularityChange}
-            />
+            <div className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded border">
+              Monthly Analysis
+            </div>
           </div>
 
           {(propertyId ||
             providerId ||
-            granularity !== "MONTH" ||
-            from !== "2024-01" ||
             yearFilter !== "all" ||
             monthFilter !== "all" ||
             searchParams.get("status") ||
@@ -2191,8 +2112,6 @@ export default function AnalyticsPage() {
         {/* Active Filters Display */}
         {(propertyId ||
           providerId ||
-          granularity !== "MONTH" ||
-          from !== "2024-01" ||
           yearFilter !== "all" ||
           monthFilter !== "all" ||
           searchParams.get("status") ||
@@ -2222,40 +2141,13 @@ export default function AnalyticsPage() {
                 </button>
               </span>
             )}
-            {granularity !== "MONTH" && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
-                {granularity === "WEEK"
-                  ? "Weekly"
-                  : granularity === "YEAR"
-                  ? "Yearly"
-                  : "Monthly"}
-                <button
-                  onClick={() => handleGranularityChange("MONTH")}
-                  className="ml-1 hover:text-purple-600"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            )}
-            {from !== "2024-01" && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                <Calendar size={12} />
-                Period: {formatPeriodLabel(from, granularity)}
-                <button
-                  onClick={() => handlePeriodChange("2024-01")}
-                  className="ml-1 hover:text-blue-600"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            )}
             {yearFilter !== "all" && (
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
                 <Calendar size={12} />
                 Year: {yearFilter}
                 <button
                   onClick={() => updateSearchParams({ year: null })}
-                  className="ml-1 hover:text-yellow-600"
+                  className="ml-1 hover:text-purple-600"
                 >
                   <X size={12} />
                 </button>
@@ -2359,13 +2251,7 @@ export default function AnalyticsPage() {
           </div>
           <div>
             <span className="text-blue-600 font-medium">Time Granularity:</span>
-            <div className="text-blue-800">
-              {granularity === "WEEK"
-                ? "Weekly"
-                : granularity === "MONTH"
-                ? "Monthly"
-                : "Yearly"}
-            </div>
+            <div className="text-blue-800">Monthly</div>
           </div>
         </div>
       </div>
@@ -2405,19 +2291,11 @@ export default function AnalyticsPage() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600 mb-1">
-                {granularity === "WEEK"
-                  ? "Weekly"
-                  : granularity === "MONTH"
-                  ? "Monthly"
-                  : "Yearly"}
+                Monthly
               </div>
               <div className="text-sm text-blue-800">Data Granularity</div>
               <div className="text-xs text-blue-600 mt-1">
-                {granularity === "WEEK"
-                  ? "Detailed weekly trends"
-                  : granularity === "MONTH"
-                  ? "Monthly performance"
-                  : "Annual overview"}
+                Monthly performance analysis
               </div>
             </div>
           </div>
@@ -2508,17 +2386,9 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Revenue Trend Chart or Fallback Chart */}
         {series && series.some((s) => s.trend && s.trend.length > 0) ? (
-          <RevenueTrendChart
-            series={series}
-            granularity={granularity}
-            height="h-[500px]"
-          />
+          <RevenueTrendChart series={series} height="h-[500px]" />
         ) : (
-          <FallbackRevenueChart
-            series={series || []}
-            granularity={granularity}
-            height="h-[500px]"
-          />
+          <FallbackRevenueChart series={series || []} height="h-[500px]" />
         )}
 
         {/* Property Performance Comparison or Combined Performance */}
@@ -2534,71 +2404,6 @@ export default function AnalyticsPage() {
           />
         )}
       </div>
-
-      {/* Debug Information - Remove in production */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="text-yellow-600">
-              <Activity size={16} />
-            </div>
-            <h3 className="text-sm font-medium text-yellow-900">Debug Info</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div>
-              <span className="font-medium">Properties Count:</span>{" "}
-              {properties.length}
-            </div>
-            <div>
-              <span className="font-medium">Providers Count:</span>{" "}
-              {providers.length}
-            </div>
-            <div>
-              <span className="font-medium">Selected Property:</span>{" "}
-              {propertyId || "None"}
-            </div>
-            <div>
-              <span className="font-medium">Selected Provider:</span>{" "}
-              {providerId || "None"}
-            </div>
-            <div>
-              <span className="font-medium">Granularity:</span> {granularity}
-            </div>
-            <div>
-              <span className="font-medium">Time Period:</span>{" "}
-              {from || "All time"}
-            </div>
-            <div>
-              <span className="font-medium">Year Filter:</span>{" "}
-              {yearFilter || "All years"}
-            </div>
-            <div>
-              <span className="font-medium">Month Filter:</span>{" "}
-              {monthFilter || "All months"}
-            </div>
-          </div>
-          {providers.length > 0 && (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-sm font-medium text-yellow-800">
-                Providers Data
-              </summary>
-              <pre className="mt-2 text-xs text-yellow-700 bg-yellow-100 p-2 rounded overflow-auto max-h-40">
-                {JSON.stringify(providers.slice(0, 2), null, 2)}
-              </pre>
-            </details>
-          )}
-          {properties.length > 0 && (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-sm font-medium text-yellow-800">
-                Properties Data
-              </summary>
-              <pre className="mt-2 text-xs text-yellow-700 bg-yellow-100 p-2 rounded overflow-auto max-h-40">
-                {JSON.stringify(properties.slice(0, 2), null, 2)}
-              </pre>
-            </details>
-          )}
-        </div>
-      )}
 
       {/* Additional Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
@@ -2627,7 +2432,7 @@ export default function AnalyticsPage() {
                 {providerId
                   ? `Performance metrics for ${selectedProvider?.name}`
                   : "Comprehensive service provider performance analysis"}{" "}
-                • {formatPeriodLabel(from, granularity)}
+                • {timePeriodText}
               </p>
             </div>
 
@@ -2695,7 +2500,6 @@ export default function AnalyticsPage() {
               {/* Service Provider Revenue Trend Chart */}
               <RevenueTrendChart
                 series={serviceProviderData.series || []}
-                granularity={granularity}
                 height="h-[500px]"
               />
 
@@ -2711,8 +2515,7 @@ export default function AnalyticsPage() {
               <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-8">
                 <div className="p-6 border-b border-gray-200">
                   <h2 className="text-lg font-semibold text-gray-900">
-                    Top Service Providers by Revenue (
-                    {formatPeriodLabel(from, granularity)})
+                    Top Service Providers by Revenue ({timePeriodText})
                   </h2>
                 </div>
                 <div className="overflow-x-auto">
@@ -2809,7 +2612,7 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-8">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">
-              Top Properties by Revenue ({formatPeriodLabel(from, granularity)})
+              Top Properties by Revenue ({timePeriodText})
             </h2>
           </div>
           <div className="overflow-x-auto">
@@ -2897,7 +2700,7 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-8">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">
-              Combined Performance ({formatPeriodLabel(from, granularity)})
+              Combined Performance ({timePeriodText})
             </h2>
           </div>
           <div className="overflow-x-auto">
@@ -2915,22 +2718,8 @@ export default function AnalyticsPage() {
             </h2>
             <p className="text-sm text-gray-600 mt-1">
               {propertyId
-                ? `Performance history for ${
-                    selectedProperty?.name
-                  } across all ${
-                    granularity === "WEEK"
-                      ? "weeks"
-                      : granularity === "YEAR"
-                      ? "years"
-                      : "months"
-                  }`
-                : `Aggregate performance across all properties for ${
-                    granularity === "WEEK"
-                      ? "weekly"
-                      : granularity === "YEAR"
-                      ? "yearly"
-                      : "monthly"
-                  } periods`}
+                ? `Performance history for ${selectedProperty?.name} across all months`
+                : `Aggregate performance across all properties for monthly periods`}
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -2960,7 +2749,7 @@ export default function AnalyticsPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {item.trend && item.trend.length > 0
-                          ? formatPeriodLabel(item.trend[0].label, granularity)
+                          ? formatPeriodLabel(item.trend[0].label, "MONTH")
                           : "Current Period"}
                       </div>
                     </td>
