@@ -382,7 +382,8 @@ export default function HomePage() {
                         {property.name}
                       </p>
                       <p className="text-sm text-gray-600">
-                        {property.address}
+                        {property.address?.fullAddress ||
+                          `${property.address?.street}, ${property.address?.city}`}
                       </p>
                     </div>
                   </div>
