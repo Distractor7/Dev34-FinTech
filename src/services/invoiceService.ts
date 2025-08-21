@@ -639,4 +639,74 @@ export class InvoiceService {
       };
     }
   }
+
+  /**
+   * Filter invoices by year and month
+   */
+  static filterInvoicesByDate(
+    invoices: Invoice[],
+    year?: string,
+    month?: string
+  ): Invoice[] {
+    if (!year && !month) return invoices;
+
+    console.log("🔍 Filtering invoices:", {
+      year,
+      month,
+      totalInvoices: invoices.length,
+    });
+
+    return invoices.filter((invoice) => {
+      const invoiceDate = new Date(invoice.dueDate); // Changed from issueDate to dueDate
+      const invoiceYear = invoiceDate.getFullYear().toString();
+      const invoiceMonth = (invoiceDate.getMonth() + 1)
+        .toString()
+        .padStart(2, "0");
+
+      const yearMatch = !year || year === "all" || invoiceYear === year;
+      const monthMatch = !month || month === "all" || invoiceMonth === month;
+
+      if (!yearMatch || !monthMatch) {
+        console.log("🔍 Invoice filtered out:", {
+          id: invoice.id,
+          dueDate: invoice.dueDate,
+          parsedDate: invoiceDate,
+          invoiceYear,
+          invoiceMonth,
+          yearMatch,
+          monthMatch,
+          yearFilter: year,
+          monthFilter: month,
+        });
+      }
+
+      return yearMatch && monthMatch;
+    });
+  }
+
+  /**
+   * Get available years from invoices
+   */
+  static getAvailableYears(invoices: Invoice[]): string[] {
+    const years = new Set<string>();
+    invoices.forEach((invoice) => {
+      const year = new Date(invoice.dueDate).getFullYear().toString(); // Changed from issueDate to dueDate
+      years.add(year);
+    });
+    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
+  }
+
+  /**
+   * Get available months from invoices
+   */
+  static getAvailableMonths(invoices: Invoice[]): string[] {
+    const months = new Set<string>();
+    invoices.forEach((invoice) => {
+      const month = (new Date(invoice.dueDate).getMonth() + 1) // Changed from issueDate to dueDate
+        .toString()
+        .padStart(2, "0");
+      months.add(month);
+    });
+    return Array.from(months).sort();
+  }
 }

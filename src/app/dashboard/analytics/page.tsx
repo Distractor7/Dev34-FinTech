@@ -1451,6 +1451,8 @@ export default function AnalyticsPage() {
   const granularity = (searchParams.get("g") as PeriodGranularity) || "MONTH";
   const from = searchParams.get("from") || ""; // Empty string means no date filter - show all data
   const to = searchParams.get("to") || ""; // Empty string means no date filter - show all data
+  const yearFilter = searchParams.get("year") || "all";
+  const monthFilter = searchParams.get("month") || "all";
 
   // Component state
   const [properties, setProperties] = useState<Property[]>([]);
@@ -1700,6 +1702,8 @@ export default function AnalyticsPage() {
       providerId: null,
       g: "MONTH",
       from: "2024-01",
+      year: null,
+      month: null,
     });
   };
 
@@ -1977,6 +1981,51 @@ export default function AnalyticsPage() {
 
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
+              Year
+            </label>
+            <select
+              value={yearFilter}
+              onChange={(e) =>
+                updateSearchParams({ year: e.target.value || null })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Years</option>
+              <option value="2024">2024</option>
+              <option value="2023">2023</option>
+              <option value="2022">2022</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Month
+            </label>
+            <select
+              value={monthFilter}
+              onChange={(e) =>
+                updateSearchParams({ month: e.target.value || null })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Months</option>
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
               Report Type
             </label>
             <GranularityTabs
@@ -1988,7 +2037,9 @@ export default function AnalyticsPage() {
           {(propertyId ||
             providerId ||
             granularity !== "MONTH" ||
-            from !== "2024-01") && (
+            from !== "2024-01" ||
+            yearFilter !== "all" ||
+            monthFilter !== "all") && (
             <button
               onClick={clearAllFilters}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -2003,7 +2054,9 @@ export default function AnalyticsPage() {
         {(propertyId ||
           providerId ||
           granularity !== "MONTH" ||
-          from !== "2024-01") && (
+          from !== "2024-01" ||
+          yearFilter !== "all" ||
+          monthFilter !== "all") && (
           <div className="mt-3 flex flex-wrap gap-2">
             {propertyId && selectedProperty && (
               <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
@@ -2051,6 +2104,53 @@ export default function AnalyticsPage() {
                 <button
                   onClick={() => handlePeriodChange("2024-01")}
                   className="ml-1 hover:text-blue-600"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {yearFilter !== "all" && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">
+                <Calendar size={12} />
+                Year: {yearFilter}
+                <button
+                  onClick={() => updateSearchParams({ year: null })}
+                  className="ml-1 hover:text-yellow-600"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {monthFilter !== "all" && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-800 text-sm rounded-full">
+                <Calendar size={12} />
+                Month:{" "}
+                {monthFilter === "01"
+                  ? "January"
+                  : monthFilter === "02"
+                  ? "February"
+                  : monthFilter === "03"
+                  ? "March"
+                  : monthFilter === "04"
+                  ? "April"
+                  : monthFilter === "05"
+                  ? "May"
+                  : monthFilter === "06"
+                  ? "June"
+                  : monthFilter === "07"
+                  ? "July"
+                  : monthFilter === "08"
+                  ? "August"
+                  : monthFilter === "09"
+                  ? "September"
+                  : monthFilter === "10"
+                  ? "October"
+                  : monthFilter === "11"
+                  ? "November"
+                  : "December"}
+                <button
+                  onClick={() => updateSearchParams({ month: null })}
+                  className="ml-1 hover:text-orange-600"
                 >
                   <X size={12} />
                 </button>
@@ -2109,6 +2209,42 @@ export default function AnalyticsPage() {
             <span className="text-gray-600">Data Granularity:</span>
             <span className="ml-2 font-medium text-gray-900 capitalize">
               {granularity.toLowerCase()}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Year Filter:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {yearFilter !== "all" ? yearFilter : "All years"}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Month Filter:</span>
+            <span className="ml-2 font-medium text-gray-900">
+              {monthFilter !== "all"
+                ? monthFilter === "01"
+                  ? "January"
+                  : monthFilter === "02"
+                  ? "February"
+                  : monthFilter === "03"
+                  ? "March"
+                  : monthFilter === "04"
+                  ? "April"
+                  : monthFilter === "05"
+                  ? "May"
+                  : monthFilter === "06"
+                  ? "June"
+                  : monthFilter === "07"
+                  ? "July"
+                  : monthFilter === "08"
+                  ? "August"
+                  : monthFilter === "09"
+                  ? "September"
+                  : monthFilter === "10"
+                  ? "October"
+                  : monthFilter === "11"
+                  ? "November"
+                  : "December"
+                : "All months"}
             </span>
           </div>
         </div>
@@ -2298,6 +2434,14 @@ export default function AnalyticsPage() {
             <div>
               <span className="font-medium">Time Period:</span>{" "}
               {from || "All time"}
+            </div>
+            <div>
+              <span className="font-medium">Year Filter:</span>{" "}
+              {yearFilter || "All years"}
+            </div>
+            <div>
+              <span className="font-medium">Month Filter:</span>{" "}
+              {monthFilter || "All months"}
             </div>
           </div>
           {providers.length > 0 && (

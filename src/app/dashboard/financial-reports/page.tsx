@@ -146,6 +146,7 @@ export default function FinancialReportsPage() {
 
   // Simple state
   const [properties, setProperties] = useState<Property[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [financialData, setFinancialData] = useState<{
     summary: {
       revenue: number;
@@ -158,6 +159,8 @@ export default function FinancialReportsPage() {
     series?: any[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [yearFilter, setYearFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all");
 
   // Simple date range - default to current month
   const [fromDate, setFromDate] = useState(() => {
@@ -181,106 +184,82 @@ export default function FinancialReportsPage() {
   );
 
   // Fetch data
-  const fetchData = useCallback(async (selectedPropertyId?: string) => {
-    setLoading(true);
-    try {
-      // Get properties from PropertyService
-      const propertiesData = await PropertyService.getProperties({});
+  const fetchData = useCallback(
+    async (selectedPropertyId?: string) => {
+      setLoading(true);
+      try {
+        // Get properties from PropertyService
+        const propertiesData = await PropertyService.getProperties({});
 
-      // Get invoice data directly from InvoiceService (same as invoices page)
-      const [invoices, invoiceStats] = await Promise.all([
-        InvoiceService.getInvoices(),
-        InvoiceService.getInvoiceStats(),
-      ]);
+        // Get invoice data directly from InvoiceService (same as invoices page)
+        const [invoicesData, invoiceStats] = await Promise.all([
+          InvoiceService.getInvoices(),
+          InvoiceService.getInvoiceStats(),
+        ]);
 
-      console.log("🔍 Debug - Invoices:", invoices);
-      console.log("🔍 Debug - Invoice Stats:", invoiceStats);
-      console.log("🔍 Debug - Properties:", propertiesData);
+        console.log("🔍 Debug - Invoices:", invoicesData);
+        console.log("🔍 Debug - Invoice Stats:", invoiceStats);
+        console.log("🔍 Debug - Properties:", propertiesData);
 
-      setProperties(propertiesData);
+        setProperties(propertiesData);
+        setInvoices(invoicesData);
 
-      // Filter invoices by selected property if specified
-      const filteredInvoices = selectedPropertyId
-        ? invoices.filter((inv) => inv.propertyId === selectedPropertyId)
-        : invoices;
+        // Filter invoices by selected property if specified
+        const filteredInvoices = selectedPropertyId
+          ? invoicesData.filter((inv) => inv.propertyId === selectedPropertyId)
+          : invoicesData;
 
-      console.log("🔍 Debug - Selected Property ID:", selectedPropertyId);
-      console.log("🔍 Debug - Filtered Invoices:", filteredInvoices);
-      console.log(
-        "🔍 Debug - All Invoices Property IDs:",
-        invoices.map((inv) => inv.propertyId)
-      );
-      console.log(
-        "🔍 Debug - All Properties IDs:",
-        propertiesData.map((p) => p.id)
-      );
-      console.log("🔍 Debug - Invoice Count:", invoices.length);
-      console.log("🔍 Debug - Properties Count:", propertiesData.length);
+        // Apply date filtering
+        const dateFilteredInvoices = InvoiceService.filterInvoicesByDate(
+          filteredInvoices,
+          yearFilter !== "all" ? yearFilter : undefined,
+          monthFilter !== "all" ? monthFilter : undefined
+        );
 
-      // Calculate summary based on filtered invoices
-      const filteredTotalAmount = filteredInvoices.reduce(
-        (sum, inv) => sum + inv.total,
-        0
-      );
-      const filteredPaidAmount = filteredInvoices
-        .filter((inv) => inv.status === "paid")
-        .reduce((sum, inv) => sum + inv.total, 0);
+        console.log("🔍 Debug - Selected Property ID:", selectedPropertyId);
+        console.log("🔍 Debug - Filtered Invoices:", dateFilteredInvoices);
+        console.log(
+          "🔍 Debug - All Invoices Property IDs:",
+          invoicesData.map((inv) => inv.propertyId)
+        );
+        console.log(
+          "🔍 Debug - All Properties IDs:",
+          propertiesData.map((p) => p.id)
+        );
+        console.log("🔍 Debug - Invoice Count:", invoicesData.length);
+        console.log("🔍 Debug - Properties Count:", propertiesData.length);
 
-      // Transform invoice data to match expected format
-      const transformedFinancialData = {
-        summary: {
-          revenue: filteredTotalAmount,
-          expenses: filteredTotalAmount * 0.3, // 30% assumption for now
-          profit: filteredTotalAmount * 0.7, // 70% of revenue
-          marginPct: 70.0, // Fixed margin for now
-          invoicesPaidPct:
-            filteredTotalAmount > 0
-              ? (filteredPaidAmount / filteredTotalAmount) * 100
-              : 0,
-        },
-        byProperty: selectedPropertyId
-          ? // If property is selected, show only that property
-            (() => {
-              const property = propertiesData.find(
-                (p) => p.id === selectedPropertyId
-              );
-              if (!property) return [];
+        // Calculate summary based on filtered invoices
+        const filteredTotalAmount = dateFilteredInvoices.reduce(
+          (sum, inv) => sum + inv.total,
+          0
+        );
+        const filteredPaidAmount = dateFilteredInvoices
+          .filter((inv) => inv.status === "paid")
+          .reduce((sum, inv) => sum + inv.total, 0);
 
-              const propertyInvoices = invoices.filter(
-                (inv) => inv.propertyId === selectedPropertyId
-              );
-              const propertyRevenue = propertyInvoices.reduce(
-                (sum, inv) => sum + inv.total,
-                0
-              );
-              const propertyPaidInvoices = propertyInvoices.filter(
-                (inv) => inv.status === "paid"
-              );
-              const propertyPaidAmount = propertyPaidInvoices.reduce(
-                (sum, inv) => sum + inv.total,
-                0
-              );
+        // Transform invoice data to match expected format
+        const transformedFinancialData = {
+          summary: {
+            revenue: filteredTotalAmount,
+            expenses: filteredTotalAmount * 0.3, // 30% assumption for now
+            profit: filteredTotalAmount * 0.7, // 70% of revenue
+            marginPct: 70.0, // Fixed margin for now
+            invoicesPaidPct:
+              filteredTotalAmount > 0
+                ? (filteredPaidAmount / filteredTotalAmount) * 100
+                : 0,
+          },
+          byProperty: selectedPropertyId
+            ? // If property is selected, show only that property
+              (() => {
+                const property = propertiesData.find(
+                  (p) => p.id === selectedPropertyId
+                );
+                if (!property) return [];
 
-              return [
-                {
-                  propertyId: property.id,
-                  propertyName: property.name,
-                  revenue: propertyRevenue,
-                  profit: propertyRevenue * 0.7, // 70% margin assumption
-                  marginPct: propertyRevenue > 0 ? 70.0 : 0,
-                  invoicesPaidPct:
-                    propertyRevenue > 0
-                      ? (propertyPaidAmount / propertyRevenue) * 100
-                      : 0,
-                },
-              ];
-            })()
-          : // Show all properties with invoices
-            propertiesData
-              .map((property) => {
-                // Calculate property-specific stats from invoices
-                const propertyInvoices = invoices.filter(
-                  (inv) => inv.propertyId === property.id
+                const propertyInvoices = dateFilteredInvoices.filter(
+                  (inv) => inv.propertyId === selectedPropertyId
                 );
                 const propertyRevenue = propertyInvoices.reduce(
                   (sum, inv) => sum + inv.total,
@@ -294,35 +273,76 @@ export default function FinancialReportsPage() {
                   0
                 );
 
-                return {
-                  propertyId: property.id,
-                  propertyName: property.name,
-                  revenue: propertyRevenue,
-                  profit: propertyRevenue * 0.7, // 70% margin assumption
-                  marginPct: propertyRevenue > 0 ? 70.0 : 0,
-                  invoicesPaidPct:
-                    propertyRevenue > 0
-                      ? (propertyPaidAmount / propertyRevenue) * 100
-                      : 0,
-                };
-              })
-              .filter((prop) => prop.revenue > 0), // Only show properties with invoices
-        series: [], // Empty for now - will implement time series later
-      };
+                return [
+                  {
+                    propertyId: property.id,
+                    propertyName: property.name,
+                    revenue: propertyRevenue,
+                    profit: propertyRevenue * 0.7, // 70% margin assumption
+                    marginPct: propertyRevenue > 0 ? 70.0 : 0,
+                    invoicesPaidPct:
+                      propertyRevenue > 0
+                        ? (propertyPaidAmount / propertyRevenue) * 100
+                        : 0,
+                  },
+                ];
+              })()
+            : // Show all properties with invoices
+              propertiesData
+                .map((property) => {
+                  // Calculate property-specific stats from invoices
+                  const propertyInvoices = dateFilteredInvoices.filter(
+                    (inv) => inv.propertyId === property.id
+                  );
+                  const propertyRevenue = propertyInvoices.reduce(
+                    (sum, inv) => sum + inv.total,
+                    0
+                  );
+                  const propertyPaidInvoices = propertyInvoices.filter(
+                    (inv) => inv.status === "paid"
+                  );
+                  const propertyPaidAmount = propertyPaidInvoices.reduce(
+                    (sum, inv) => sum + inv.total,
+                    0
+                  );
 
-      setFinancialData(transformedFinancialData);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []); // Stable dependency array - no dependencies needed
+                  return {
+                    propertyId: property.id,
+                    propertyName: property.name,
+                    revenue: propertyRevenue,
+                    profit: propertyRevenue * 0.7, // 70% margin assumption
+                    marginPct: propertyRevenue > 0 ? 70.0 : 0,
+                    invoicesPaidPct:
+                      propertyRevenue > 0
+                        ? (propertyPaidAmount / propertyRevenue) * 100
+                        : 0,
+                  };
+                })
+                .filter((prop) => prop.revenue > 0), // Only show properties with invoices
+          series: [], // Empty for now - will implement time series later
+        };
+
+        setFinancialData(transformedFinancialData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [yearFilter, monthFilter]
+  ); // Stable dependency array - no dependencies needed
 
   // Initial data fetch and refetch when property filter changes
   useEffect(() => {
     const propertyId = searchParams.get("propertyId");
     fetchData(propertyId || undefined);
   }, [searchParams, fetchData]);
+
+  // Refetch data when year/month filters change
+  useEffect(() => {
+    const propertyId = searchParams.get("propertyId");
+    fetchData(propertyId || undefined);
+  }, [yearFilter, monthFilter, fetchData]);
 
   const exportFinancialReport = () => {
     // Mock export function
@@ -803,6 +823,47 @@ export default function FinancialReportsPage() {
                 router.push(`${pathname}?${params.toString()}`);
               }}
             />
+          </div>
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Year
+            </label>
+            <select
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Years</option>
+              {InvoiceService.getAvailableYears(invoices).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1 min-w-0">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Month
+            </label>
+            <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Months</option>
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
           </div>
         </div>
 

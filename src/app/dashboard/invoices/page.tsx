@@ -31,6 +31,8 @@ export default function InvoicesPage() {
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [yearFilter, setYearFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all");
   const [stats, setStats] = useState({
     total: 0,
     draft: 0,
@@ -52,7 +54,14 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     filterInvoices();
-  }, [invoices, searchTerm, statusFilter, propertyFilter]);
+  }, [
+    invoices,
+    searchTerm,
+    statusFilter,
+    propertyFilter,
+    yearFilter,
+    monthFilter,
+  ]);
 
   const fetchInvoices = async () => {
     try {
@@ -119,15 +128,77 @@ export default function InvoicesPage() {
       );
     }
 
+    // Apply date filters using InvoiceService
+    const beforeDateFilter = filtered.length;
+    filtered = InvoiceService.filterInvoicesByDate(
+      filtered,
+      yearFilter,
+      monthFilter
+    );
+    const afterDateFilter = filtered.length;
+
+    // Debug logging for date filtering
+    if (yearFilter !== "all" || monthFilter !== "all") {
+      console.log("🔍 Date Filter Debug:", {
+        yearFilter,
+        monthFilter,
+        beforeDateFilter,
+        afterDateFilter,
+        filteredCount: filtered.length,
+        sampleInvoices: filtered.slice(0, 3).map((inv) => ({
+          id: inv.id,
+          dueDate: inv.dueDate,
+          formattedDate: new Date(inv.dueDate).toLocaleDateString(),
+        })),
+      });
+    }
+
     // Apply search filter
     if (searchTerm) {
+      const beforeSearch = filtered.length;
       filtered = filtered.filter(
-        (invoice) =>
-          invoice.invoiceNumber
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          invoice.description.toLowerCase().includes(searchTerm.toLowerCase())
+        (invoice) => {
+          const searchLower = searchTerm.toLowerCase();
+          
+          // Search by invoice number
+          if (invoice.invoiceNumber.toLowerCase().includes(searchLower)) {
+            return true;
+          }
+          
+          // Search by description
+          if (invoice.description.toLowerCase().includes(searchLower)) {
+            return true;
+          }
+          
+          // Search by service provider name
+          const providerName = getServiceProviderName(invoice.providerId);
+          if (providerName.toLowerCase().includes(searchLower)) {
+            return true;
+          }
+          
+          // Search by property name
+          const propertyName = getPropertyName(invoice.propertyId);
+          if (propertyName.toLowerCase().includes(searchLower)) {
+            return true;
+          }
+          
+          return false;
+        }
       );
+      
+      // Debug logging for search
+      console.log("🔍 Search Debug:", {
+        searchTerm,
+        beforeSearch,
+        afterSearch: filtered.length,
+        searchResults: filtered.slice(0, 3).map(inv => ({
+          id: inv.id,
+          invoiceNumber: inv.invoiceNumber,
+          description: inv.description,
+          providerName: getServiceProviderName(inv.providerId),
+          propertyName: getPropertyName(inv.propertyId)
+        }))
+      });
     }
 
     setFilteredInvoices(filtered);
@@ -368,12 +439,44 @@ export default function InvoicesPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
-                placeholder="Search invoices..."
+                placeholder="Search by invoice #, description, provider, or property..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Search by invoice number, description, service provider name, or property name
+            </p>
+            {!searchTerm && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                <span className="text-xs text-gray-400">Try:</span>
+                <button
+                  onClick={() => setSearchTerm("INV-2024")}
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  INV-2024
+                </button>
+                <button
+                  onClick={() => setSearchTerm("Parking")}
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  Parking
+                </button>
+                <button
+                  onClick={() => setSearchTerm("CleanPro")}
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  CleanPro
+                </button>
+                <button
+                  onClick={() => setSearchTerm("Knysna")}
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  Knysna
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <Filter className="h-4 w-4 text-gray-400" />
@@ -401,14 +504,49 @@ export default function InvoicesPage() {
                 </option>
               ))}
             </select>
+            <select
+              value={yearFilter}
+              onChange={(e) => setYearFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Years</option>
+              {InvoiceService.getAvailableYears(invoices).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+            <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Months</option>
+              <option value="01">January</option>
+              <option value="02">February</option>
+              <option value="03">March</option>
+              <option value="04">April</option>
+              <option value="05">May</option>
+              <option value="06">June</option>
+              <option value="07">July</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
             {(searchTerm ||
               statusFilter !== "all" ||
-              propertyFilter !== "all") && (
+              propertyFilter !== "all" ||
+              yearFilter !== "all" ||
+              monthFilter !== "all") && (
               <button
                 onClick={() => {
                   setSearchTerm("");
                   setStatusFilter("all");
                   setPropertyFilter("all");
+                  setYearFilter("all");
+                  setMonthFilter("all");
                 }}
                 className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -434,7 +572,11 @@ export default function InvoicesPage() {
               No invoices found
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || statusFilter !== "all" || propertyFilter !== "all"
+              {searchTerm ||
+              statusFilter !== "all" ||
+              propertyFilter !== "all" ||
+              yearFilter !== "all" ||
+              monthFilter !== "all"
                 ? "Try adjusting your search or filters."
                 : "Get started by creating your first invoice."}
             </p>
