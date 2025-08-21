@@ -156,48 +156,46 @@ export default function InvoicesPage() {
     // Apply search filter
     if (searchTerm) {
       const beforeSearch = filtered.length;
-      filtered = filtered.filter(
-        (invoice) => {
-          const searchLower = searchTerm.toLowerCase();
-          
-          // Search by invoice number
-          if (invoice.invoiceNumber.toLowerCase().includes(searchLower)) {
-            return true;
-          }
-          
-          // Search by description
-          if (invoice.description.toLowerCase().includes(searchLower)) {
-            return true;
-          }
-          
-          // Search by service provider name
-          const providerName = getServiceProviderName(invoice.providerId);
-          if (providerName.toLowerCase().includes(searchLower)) {
-            return true;
-          }
-          
-          // Search by property name
-          const propertyName = getPropertyName(invoice.propertyId);
-          if (propertyName.toLowerCase().includes(searchLower)) {
-            return true;
-          }
-          
-          return false;
+      filtered = filtered.filter((invoice) => {
+        const searchLower = searchTerm.toLowerCase();
+
+        // Search by invoice number
+        if (invoice.invoiceNumber.toLowerCase().includes(searchLower)) {
+          return true;
         }
-      );
-      
+
+        // Search by description
+        if (invoice.description.toLowerCase().includes(searchLower)) {
+          return true;
+        }
+
+        // Search by service provider name
+        const providerName = getServiceProviderName(invoice.providerId);
+        if (providerName.toLowerCase().includes(searchLower)) {
+          return true;
+        }
+
+        // Search by property name
+        const propertyName = getPropertyName(invoice.propertyId);
+        if (propertyName.toLowerCase().includes(searchLower)) {
+          return true;
+        }
+
+        return false;
+      });
+
       // Debug logging for search
       console.log("🔍 Search Debug:", {
         searchTerm,
         beforeSearch,
         afterSearch: filtered.length,
-        searchResults: filtered.slice(0, 3).map(inv => ({
+        searchResults: filtered.slice(0, 3).map((inv) => ({
           id: inv.id,
           invoiceNumber: inv.invoiceNumber,
           description: inv.description,
           providerName: getServiceProviderName(inv.providerId),
-          propertyName: getPropertyName(inv.propertyId)
-        }))
+          propertyName: getPropertyName(inv.propertyId),
+        })),
       });
     }
 
@@ -446,7 +444,8 @@ export default function InvoicesPage() {
               />
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Search by invoice number, description, service provider name, or property name
+              Search by invoice number, description, service provider name, or
+              property name
             </p>
             {!searchTerm && (
               <div className="flex flex-wrap gap-2 mt-2">
