@@ -14,6 +14,10 @@ import {
   LineChart,
   PieChart,
   Activity,
+  Search,
+  Filter,
+  Users,
+  Building2,
 } from "lucide-react";
 import { Property, PeriodGranularity, PropertyRankItem } from "@/types/float34";
 import { getApi } from "@/lib/api";
@@ -30,6 +34,9 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import { Float34Api } from "@/lib/api";
+import { Invoice } from "@/services/invoiceService";
+import { ServiceProviderService } from "@/services/serviceProviderService";
 
 // Helper functions
 function formatCurrency(amount: number, currency: string = "USD"): string {
@@ -578,9 +585,6 @@ function RevenueTrendChart({
               Revenue Trend
             </h3>
             <p className="text-sm text-gray-600">No trend data available</p>
-            <p className="text-xs text-gray-500 mt-1">
-              Try adjusting your filters or time period
-            </p>
           </div>
         </div>
       </div>
@@ -1421,6 +1425,7 @@ export default function AnalyticsPage() {
   const providerId = searchParams.get("providerId") || "";
   const granularity = (searchParams.get("g") as PeriodGranularity) || "MONTH";
   const from = searchParams.get("from") || ""; // Empty string means no date filter - show all data
+  const to = searchParams.get("to") || ""; // Empty string means no date filter - show all data
 
   // Component state
   const [properties, setProperties] = useState<Property[]>([]);
@@ -1455,61 +1460,38 @@ export default function AnalyticsPage() {
   const selectedProvider = providers.find((p) => p.id === providerId);
 
   // Fetch data
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = async () => {
     try {
-      // Use the new combined API for better filtering precision
-      const combinedData = await getApi().getCombinedFinancials({
-        propertyId: propertyId || undefined,
-        providerId: providerId || undefined,
-        from,
-        to: from, // Use same period for analytics
+      setLoading(true);
+      console.log("🔍 Fetching financial data...");
+      console.log("🔍 Current filters:", {
+        propertyId,
+        providerId,
         granularity,
+        from,
+        to,
       });
 
-      // Set combined data for the new combined performance table
-      setCombinedData(combinedData.combinedData || []);
+      const api = getApi();
+      console.log("🔍 API instance:", api);
 
-      // For financial data, we need to ensure we have the right structure
-      if (propertyId && providerId) {
-        // Both filters active - use the combined data structure
-        setFinancialData({
-          summary: combinedData.summary,
-          byProperty: combinedData.byProperty,
-          series: combinedData.series || [],
-        });
+      const data = await api.getCombinedFinancials({
+        propertyId: propertyId || undefined,
+        providerId: providerId || undefined,
+        granularity,
+        from: from || undefined,
+        to: to || undefined,
+      });
 
-        setServiceProviderData({
-          summary: combinedData.summary,
-          byProvider: combinedData.byProvider,
-          series: combinedData.series || [],
-        });
-      } else {
-        // Single filter or no filter - fall back to individual APIs for better data structure
-        const [propertyData, providerData] = await Promise.all([
-          getApi().getPropertyFinancials({
-            propertyId: propertyId || undefined,
-            from,
-            to: from,
-            granularity,
-          }),
-          getApi().getServiceProviderFinancials({
-            providerId: providerId || undefined,
-            from,
-            to: from,
-            granularity,
-          }),
-        ]);
-
-        setFinancialData(propertyData);
-        setServiceProviderData(providerData);
-      }
+      console.log("🔍 Financial data received:", data);
+      setFinancialData(data);
     } catch (error) {
-      console.error("Error fetching financial data:", error);
+      console.error("❌ Error fetching financial data:", error);
+      setFinancialData(null);
     } finally {
       setLoading(false);
     }
-  }, [propertyId, providerId, from, granularity]);
+  };
 
   useEffect(() => {
     fetchData();
@@ -1582,6 +1564,29 @@ export default function AnalyticsPage() {
     });
   };
 
+  const handleSeedServiceProviders = async () => {
+    try {
+      console.log("🌱 Seeding service providers...");
+
+      const result = await ServiceProviderService.seedServiceProviders();
+
+      if (result.success) {
+        alert(
+          `✅ Successfully seeded ${result.count} service providers! Refreshing data...`
+        );
+        // Refresh both providers and financial data
+        const provs = await getApi().listProviders();
+        setProviders(provs);
+        fetchData();
+      } else {
+        alert(`❌ Failed to seed service providers: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error seeding service providers:", error);
+      alert("❌ Error seeding service providers. Check console for details.");
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6">
@@ -1616,23 +1621,33 @@ export default function AnalyticsPage() {
 
   const { summary, byProperty, series } = financialData;
 
+  const timePeriodText = from
+    ? formatPeriodLabel(from, granularity)
+    : "All time data";
+
   return (
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Financial Analytics
-        </h1>
-        <p className="text-gray-600">
-          {propertyId && providerId
-            ? `Performance analysis for ${selectedProvider?.name} at ${selectedProperty?.name}`
-            : propertyId
-            ? `In-depth analysis for ${selectedProperty?.name}`
-            : providerId
-            ? `In-depth analysis for ${selectedProvider?.name}`
-            : "Comprehensive financial performance analysis across all properties and service providers"}{" "}
-          • {from ? formatPeriodLabel(from, granularity) : "All time data"}
-        </p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Financial Analytics
+            </h1>
+            <p className="text-gray-600">
+              In-depth analysis for {selectedProperty?.name || "All Properties"}{" "}
+              • {timePeriodText}
+            </p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleSeedServiceProviders}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              🌱 Seed Service Providers
+            </button>
+          </div>
+        </div>
 
         {/* Smart Filter Suggestions */}
         {!propertyId && !providerId && (

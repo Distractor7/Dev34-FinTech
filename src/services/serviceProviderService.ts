@@ -205,6 +205,8 @@ export class ServiceProviderService {
     hasMore: boolean;
   }> {
     try {
+      console.log("🔍 getProviders called with params:", params);
+
       // Check Firebase connection first
       const isConnected = await this.checkFirebaseConnection();
       if (!isConnected) {
@@ -253,10 +255,14 @@ export class ServiceProviderService {
       constraints.push(limit(pageSize + 1)); // Get one extra to check if there are more
 
       const querySnapshot = await getDocs(query(q, ...constraints));
+      console.log(`🔍 Found ${querySnapshot.size} service provider documents`);
+
       const providers: Provider[] = [];
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        console.log(`🔍 Provider ${doc.id} data:`, data);
+
         // Decrypt sensitive data
         const decryptedData = DataEncryption.decryptProviderData(data);
 
@@ -291,6 +297,10 @@ export class ServiceProviderService {
         filteredProviders.length > 0
           ? querySnapshot.docs[querySnapshot.docs.length - 1]
           : undefined;
+
+      console.log(
+        `🔍 Returning ${filteredProviders.length} providers out of ${querySnapshot.size} total documents`
+      );
 
       return {
         providers: filteredProviders,
@@ -622,6 +632,182 @@ export class ServiceProviderService {
         inactive: 0,
         pending: 0,
         suspended: 0,
+      };
+    }
+  }
+
+  /**
+   * Seed service providers with proper data for analytics testing
+   * This ensures all service providers have names and required fields
+   */
+  static async seedServiceProviders(): Promise<{
+    success: boolean;
+    count: number;
+    error?: string;
+  }> {
+    try {
+      console.log("🌱 Seeding service providers with proper data...");
+
+      // Check if we already have properly seeded providers
+      const existingProviders = await this.getProviders();
+      if (
+        existingProviders?.providers &&
+        existingProviders.providers.length > 0
+      ) {
+        const hasNames = existingProviders.providers.every(
+          (p) => p.name && p.name.trim() !== ""
+        );
+        if (hasNames) {
+          console.log("✅ Service providers already have names, skipping seed");
+          return { success: true, count: existingProviders.providers.length };
+        }
+      }
+
+      // Define the service providers that match your existing invoices
+      const serviceProvidersData = [
+        {
+          name: "CleanPro Services",
+          email: "info@cleanpro.com",
+          phone: "+1-555-0101",
+          service: "Cleaning Services",
+          status: "active" as const,
+          rating: 4.8,
+          propertyIds: [],
+          serviceCategories: [
+            "General Cleaning",
+            "Window Cleaning",
+            "Deep Cleaning",
+          ],
+          serviceAreas: ["Downtown", "Midtown", "Uptown"],
+          businessName: "CleanPro Services LLC",
+          complianceStatus: {
+            backgroundCheck: true,
+            drugTest: true,
+            safetyTraining: true,
+            lastUpdated: new Date().toISOString(),
+          },
+          availability: {
+            monday: { start: "08:00", end: "17:00" },
+            tuesday: { start: "08:00", end: "17:00" },
+            wednesday: { start: "08:00", end: "17:00" },
+            thursday: { start: "08:00", end: "17:00" },
+            friday: { start: "08:00", end: "17:00" },
+            saturday: { start: "09:00", end: "15:00" },
+            sunday: { start: null, end: null },
+          },
+        },
+        {
+          name: "FiberNet Solutions",
+          email: "support@fibernet.com",
+          phone: "+1-555-0102",
+          service: "Internet Services",
+          status: "active" as const,
+          rating: 4.9,
+          propertyIds: [],
+          serviceCategories: [
+            "Fiber Installation",
+            "Internet Service",
+            "Network Maintenance",
+          ],
+          serviceAreas: ["Downtown", "Midtown", "Uptown"],
+          businessName: "FiberNet Solutions Inc",
+          complianceStatus: {
+            backgroundCheck: true,
+            drugTest: false,
+            safetyTraining: true,
+            lastUpdated: new Date().toISOString(),
+          },
+          availability: {
+            monday: { start: "09:00", end: "18:00" },
+            tuesday: { start: "09:00", end: "18:00" },
+            wednesday: { start: "09:00", end: "18:00" },
+            thursday: { start: "09:00", end: "18:00" },
+            friday: { start: "09:00", end: "18:00" },
+            saturday: { start: "10:00", end: "16:00" },
+            sunday: { start: null, end: null },
+          },
+        },
+        {
+          name: "Parking Plus Services",
+          email: "info@parkingplus.com",
+          phone: "+1-555-0103",
+          service: "Parking Services",
+          status: "active" as const,
+          rating: 4.7,
+          propertyIds: [],
+          serviceCategories: [
+            "Parking Maintenance",
+            "Security Services",
+            "Lot Cleaning",
+          ],
+          serviceAreas: ["Downtown", "Midtown", "Uptown"],
+          businessName: "Parking Plus Services LLC",
+          complianceStatus: {
+            backgroundCheck: true,
+            drugTest: true,
+            safetyTraining: true,
+            lastUpdated: new Date().toISOString(),
+          },
+          availability: {
+            monday: { start: "08:00", end: "17:00" },
+            tuesday: { start: "08:00", end: "17:00" },
+            wednesday: { start: "08:00", end: "17:00" },
+            thursday: { start: "08:00", end: "17:00" },
+            friday: { start: "08:00", end: "17:00" },
+            saturday: { start: null, end: null },
+            sunday: { start: null, end: null },
+          },
+        },
+      ];
+
+      // Get existing provider documents to update them
+      const existingProviderDocs = await getDocs(
+        collection(db, "serviceProviders")
+      );
+      const batch = writeBatch(db);
+      let updatedCount = 0;
+
+      if (!existingProviderDocs.empty) {
+        // Update existing providers with proper data
+        existingProviderDocs.docs.forEach((doc, index) => {
+          if (index < serviceProvidersData.length) {
+            const providerData = serviceProvidersData[index];
+            batch.update(doc.ref, {
+              ...providerData,
+              updatedAt: new Date().toISOString(),
+              updatedBy: "system",
+            });
+            updatedCount++;
+          }
+        });
+      } else {
+        // Create new providers if none exist
+        serviceProvidersData.forEach((providerData) => {
+          const docRef = doc(collection(db, "serviceProviders"));
+          batch.set(docRef, {
+            ...providerData,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            lastActive: new Date().toISOString(),
+            createdBy: "system",
+            updatedBy: "system",
+          });
+          updatedCount++;
+        });
+      }
+
+      await batch.commit();
+      console.log(
+        `✅ Successfully seeded ${updatedCount} service providers with proper data`
+      );
+
+      return { success: true, count: updatedCount };
+    } catch (error) {
+      console.error("❌ Error seeding service providers:", error);
+      return {
+        success: false,
+        count: 0,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }

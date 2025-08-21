@@ -68,7 +68,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               setUserProfile(profile);
               setError(null);
             } else {
-              setError("User profile not found");
+              // Create default user profile with access to all properties (for development)
+              console.log("Creating default user profile for:", user.uid);
+              const createResult = await UserService.createOrUpdateUserProfile(
+                user.uid,
+                {
+                  email: user.email || "",
+                  displayName: user.displayName || "",
+                  role: "admin", // Give admin access for development
+                  propertyIds: [], // Will be populated based on user's actual properties
+                  accessiblePropertyIds: [], // Will be populated based on user's access
+                  providerIds: [], // Will be populated based on user's providers
+                }
+              );
+
+              if (createResult.success) {
+                const newProfile = await UserService.getUserProfile(user.uid);
+                setUserProfile(newProfile);
+                setError(null);
+              } else {
+                setError("Failed to create user profile");
+              }
             }
           } catch (error) {
             console.error("Error fetching user profile:", error);

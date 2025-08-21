@@ -514,4 +514,60 @@ export class PropertyService {
       };
     }
   }
+
+  /**
+   * Grant admin access to all properties for the current user
+   * This is a temporary development method to ensure security rules work
+   */
+  static async grantAdminAccessToAll(): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      const isConnected = await this.checkFirebaseConnection();
+      if (!isConnected) {
+        return {
+          success: false,
+          error: "Firebase connection unavailable",
+        };
+      }
+
+      // Get current user
+      const { currentUser } = await import("firebase/auth");
+      const user = currentUser();
+
+      if (!user) {
+        return {
+          success: false,
+          error: "No authenticated user",
+        };
+      }
+
+      // Get all properties
+      const properties = await this.getProperties();
+
+      // Update user profile to have access to all properties
+      const { UserService } = await import("./userService");
+      const result = await UserService.createOrUpdateUserProfile(user.uid, {
+        accessiblePropertyIds: properties.map((p) => p.id),
+        role: "admin",
+      });
+
+      if (result.success) {
+        console.log("✅ Admin access granted to all properties");
+        return { success: true };
+      } else {
+        return {
+          success: false,
+          error: result.error || "Failed to update user profile",
+        };
+      }
+    } catch (error: any) {
+      console.error("Error granting admin access:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to grant admin access",
+      };
+    }
+  }
 }

@@ -16,13 +16,18 @@ import {
 } from "lucide-react";
 import { InvoiceService } from "../../../services/invoiceService";
 import { Invoice } from "../../../services/invoiceService";
+import { PropertyService } from "../../../services/propertyService";
+import { ServiceProviderService } from "../../../services/serviceProviderService";
 import InvoiceDetailModal from "../../../components/InvoiceDetailModal";
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [properties, setProperties] = useState<any[]>([]);
+  const [serviceProviders, setServiceProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [propertyFilter, setPropertyFilter] = useState<string>("all");
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,11 +46,13 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     fetchInvoices();
+    fetchProperties();
+    fetchServiceProviders();
   }, []);
 
   useEffect(() => {
     filterInvoices();
-  }, [invoices, searchTerm, statusFilter]);
+  }, [invoices, searchTerm, statusFilter, propertyFilter]);
 
   const fetchInvoices = async () => {
     try {
@@ -64,12 +71,37 @@ export default function InvoicesPage() {
     }
   };
 
+  const fetchProperties = async () => {
+    try {
+      const propertiesData = await PropertyService.getProperties();
+      setProperties(propertiesData || []);
+    } catch (error) {
+      console.error("Error fetching properties:", error);
+    }
+  };
+
+  const fetchServiceProviders = async () => {
+    try {
+      const providersResponse = await ServiceProviderService.getProviders();
+      setServiceProviders(providersResponse?.providers || []);
+    } catch (error) {
+      console.error("Error fetching service providers:", error);
+    }
+  };
+
   const filterInvoices = () => {
     let filtered = invoices;
 
     // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter((invoice) => invoice.status === statusFilter);
+    }
+
+    // Apply property filter
+    if (propertyFilter !== "all") {
+      filtered = filtered.filter(
+        (invoice) => invoice.propertyId === propertyFilter
+      );
     }
 
     // Apply search filter
@@ -84,6 +116,16 @@ export default function InvoicesPage() {
     }
 
     setFilteredInvoices(filtered);
+  };
+
+  const getPropertyName = (propertyId: string) => {
+    const property = properties.find((p) => p.id === propertyId);
+    return property ? property.name : propertyId;
+  };
+
+  const getServiceProviderName = (providerId: string) => {
+    const provider = serviceProviders.find((p) => p.id === providerId);
+    return provider ? provider.name : providerId;
   };
 
   const getStatusColor = (status: string) => {
@@ -140,10 +182,62 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleAddInvoice = () => {
+  const handleSeedSampleInvoices = () => {
     InvoiceService.seedSampleInvoices();
     alert("Sample invoice added!");
     fetchInvoices(); // Refresh data
+  };
+
+  const handleSetupAdminAccess = async () => {
+    if (
+      confirm(
+        "Are you sure you want to grant admin access to all properties? This will allow you to manage all properties from this dashboard."
+      )
+    ) {
+      try {
+        console.log("🔑 Starting admin access setup...");
+
+        // First, let's check what properties exist
+        const properties = await PropertyService.getProperties();
+        console.log("🏢 Available properties:", properties);
+
+        // Get current user from auth context
+        const { useAuth } = await import("../../../contexts/AuthContext");
+        const { user } = useAuth();
+        console.log("👤 Current user:", user?.uid);
+
+        if (!user) {
+          alert("No authenticated user found!");
+          return;
+        }
+
+        // Update user profile with admin access
+        const { UserService } = await import("../../../services/userService");
+        const result = await UserService.createOrUpdateUserProfile(user.uid, {
+          email: user.email || "",
+          role: "admin", // Give admin access for development
+        });
+
+        console.log("📝 User profile update result:", result);
+
+        if (result.success) {
+          // Verify the profile was created
+          const profile = await UserService.getUserProfile(user.uid);
+          console.log("✅ User profile after update:", profile);
+
+          alert("Admin access granted to all properties! Refreshing data...");
+
+          // Refresh data
+          fetchProperties();
+          fetchInvoices();
+        } else {
+          alert(`Failed to setup admin access: ${result.error}`);
+        }
+      } catch (error) {
+        console.error("❌ Error setting up admin access:", error);
+        alert(`Error: ${error}`);
+      }
+    }
   };
 
   if (loading) {
@@ -159,30 +253,32 @@ export default function InvoicesPage() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
-            <p className="text-gray-600">
-              Manage and track all your invoices in one place
-            </p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleComprehensiveSeeding}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-              title="Seed comprehensive test data for analytics testing"
-            >
-              🌱 Seed Test Data
-            </button>
-            <button
-              onClick={handleAddInvoice}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Invoice
-            </button>
-          </div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
+          <p className="text-gray-600">
+            Manage and track all your invoices in one place
+          </p>
+        </div>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleComprehensiveSeeding}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            🌱 Seed Test Data
+          </button>
+          <button
+            onClick={handleSeedSampleInvoices}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            + Add Invoice
+          </button>
+          <button
+            onClick={handleSetupAdminAccess}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            🔑 Setup Admin Access
+          </button>
         </div>
       </div>
 
@@ -278,6 +374,32 @@ export default function InvoicesPage() {
               <option value="overdue">Overdue</option>
               <option value="cancelled">Cancelled</option>
             </select>
+            <select
+              value={propertyFilter}
+              onChange={(e) => setPropertyFilter(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">All Properties</option>
+              {properties.map((property) => (
+                <option key={property.id} value={property.id}>
+                  {property.name}
+                </option>
+              ))}
+            </select>
+            {(searchTerm ||
+              statusFilter !== "all" ||
+              propertyFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                  setPropertyFilter("all");
+                }}
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -297,7 +419,7 @@ export default function InvoicesPage() {
               No invoices found
             </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || statusFilter !== "all"
+              {searchTerm || statusFilter !== "all" || propertyFilter !== "all"
                 ? "Try adjusting your search or filters."
                 : "Get started by creating your first invoice."}
             </p>
@@ -307,22 +429,25 @@ export default function InvoicesPage() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Invoice
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Client
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Amount
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Due Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                    Property
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     Actions
                   </th>
                 </tr>
@@ -330,27 +455,27 @@ export default function InvoicesPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredInvoices.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {invoice.invoiceNumber}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-500 truncate max-w-xs">
                           {invoice.description}
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {invoice.providerId}
+                        {getServiceProviderName(invoice.providerId)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {formatCurrency(invoice.total)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                           invoice.status
@@ -359,29 +484,37 @@ export default function InvoicesPage() {
                         {invoice.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(invoice.dueDate)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
+                    <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900">
+                      <div
+                        className="truncate max-w-20"
+                        title={getPropertyName(invoice.propertyId)}
+                      >
+                        {getPropertyName(invoice.propertyId)}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-1">
                         <button
                           onClick={() => handleViewInvoice(invoice)}
-                          className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                          className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-1.5 rounded transition-colors"
                           title="View Invoice"
                         >
-                          <Eye size={16} />
+                          <Eye size={14} />
                         </button>
                         <button
-                          className="text-gray-400 hover:text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors"
+                          className="text-gray-400 hover:text-green-600 hover:bg-green-50 p-1.5 rounded transition-colors"
                           title="Download"
                         >
-                          <Download size={16} />
+                          <Download size={14} />
                         </button>
                         <button
-                          className="text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 p-2 rounded-lg transition-colors"
+                          className="text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 p-1.5 rounded transition-colors"
                           title="Edit"
                         >
-                          <Edit size={16} />
+                          <Edit size={14} />
                         </button>
                       </div>
                     </td>

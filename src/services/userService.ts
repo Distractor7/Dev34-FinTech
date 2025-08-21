@@ -192,6 +192,61 @@ export class UserService {
       return { success: false, error: "Failed to link service provider" };
     }
   }
+
+  /**
+   * Create or update user profile with property access
+   */
+  static async createOrUpdateUserProfile(
+    userId: string,
+    userData: Partial<UserProfile>
+  ): Promise<{ success: boolean; profileId?: string; error?: string }> {
+    try {
+      const isConnected = await this.checkFirebaseConnection();
+      if (!isConnected) {
+        return {
+          success: false,
+          error: "Firebase connection unavailable",
+        };
+      }
+
+      // Check if profile exists
+      const existingProfile = await this.getUserProfile(userId);
+
+      if (existingProfile) {
+        // Update existing profile
+        const docRef = doc(db, "users", userId);
+        await updateDoc(docRef, {
+          ...userData,
+          updatedAt: new Date().toISOString(),
+          updatedBy: userId,
+        });
+        return { success: true, profileId: userId };
+      } else {
+        // Create new profile
+        const docRef = doc(db, "users", userId);
+        await setDoc(docRef, {
+          uid: userId,
+          email: userData.email || "",
+          displayName: userData.displayName || "",
+          role: userData.role || "user",
+          propertyIds: userData.propertyIds || [], // Properties user owns
+          accessiblePropertyIds: userData.accessiblePropertyIds || [], // Properties user can access
+          providerIds: userData.providerIds || [], // Service providers user manages
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdBy: userId,
+          updatedBy: userId,
+        });
+        return { success: true, profileId: userId };
+      }
+    } catch (error: any) {
+      console.error("Error creating/updating user profile:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to create/update user profile",
+      };
+    }
+  }
 }
 
 export default UserService;
