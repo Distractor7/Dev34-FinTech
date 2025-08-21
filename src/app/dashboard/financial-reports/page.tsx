@@ -21,6 +21,7 @@ import FinancialService, {
   FinancialTimeSeries,
 } from "@/services/financialService";
 import { PropertyService } from "@/services/propertyService";
+import { InvoiceService } from "@/services/invoiceService";
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -170,74 +171,142 @@ export default function FinancialReportsPage() {
     return now.toISOString().split("T")[0];
   });
 
-  // Debounced dates for API calls
+  // Debounced dates for API calls (not currently used but kept for future)
   const debouncedFrom = useDebounce(fromDate, 500);
   const debouncedTo = useDebounce(toDate, 500);
 
   // Get selected property name for display
   const selectedProperty = properties.find(
-    (p) => p.id === searchParams.get("propertyId") || ""
+    (p) => p.id === searchParams.get("propertyId")
   );
 
   // Fetch data
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (selectedPropertyId?: string) => {
     setLoading(true);
     try {
       // Get properties from PropertyService
       const propertiesData = await PropertyService.getProperties({});
 
       // Get invoice data directly from InvoiceService (same as invoices page)
-      const InvoiceService = await import("@/services/invoiceService");
       const [invoices, invoiceStats] = await Promise.all([
-        InvoiceService.InvoiceService.getInvoices(),
-        InvoiceService.InvoiceService.getInvoiceStats(),
+        InvoiceService.getInvoices(),
+        InvoiceService.getInvoiceStats(),
       ]);
 
+      console.log("🔍 Debug - Invoices:", invoices);
+      console.log("🔍 Debug - Invoice Stats:", invoiceStats);
+      console.log("🔍 Debug - Properties:", propertiesData);
+
       setProperties(propertiesData);
+
+      // Filter invoices by selected property if specified
+      const filteredInvoices = selectedPropertyId
+        ? invoices.filter((inv) => inv.propertyId === selectedPropertyId)
+        : invoices;
+
+      console.log("🔍 Debug - Selected Property ID:", selectedPropertyId);
+      console.log("🔍 Debug - Filtered Invoices:", filteredInvoices);
+      console.log(
+        "🔍 Debug - All Invoices Property IDs:",
+        invoices.map((inv) => inv.propertyId)
+      );
+      console.log(
+        "🔍 Debug - All Properties IDs:",
+        propertiesData.map((p) => p.id)
+      );
+      console.log("🔍 Debug - Invoice Count:", invoices.length);
+      console.log("🔍 Debug - Properties Count:", propertiesData.length);
+
+      // Calculate summary based on filtered invoices
+      const filteredTotalAmount = filteredInvoices.reduce(
+        (sum, inv) => sum + inv.total,
+        0
+      );
+      const filteredPaidAmount = filteredInvoices
+        .filter((inv) => inv.status === "paid")
+        .reduce((sum, inv) => sum + inv.total, 0);
 
       // Transform invoice data to match expected format
       const transformedFinancialData = {
         summary: {
-          revenue: invoiceStats.totalAmount,
-          expenses: invoiceStats.totalAmount * 0.3, // 30% assumption for now
-          profit: invoiceStats.totalAmount * 0.7, // 70% of revenue
+          revenue: filteredTotalAmount,
+          expenses: filteredTotalAmount * 0.3, // 30% assumption for now
+          profit: filteredTotalAmount * 0.7, // 70% of revenue
           marginPct: 70.0, // Fixed margin for now
           invoicesPaidPct:
-            invoiceStats.paidAmount > 0
-              ? (invoiceStats.paidAmount / invoiceStats.totalAmount) * 100
+            filteredTotalAmount > 0
+              ? (filteredPaidAmount / filteredTotalAmount) * 100
               : 0,
         },
-        byProperty: propertiesData
-          .map((property) => {
-            // Calculate property-specific stats from invoices
-            const propertyInvoices = invoices.filter(
-              (inv) => inv.propertyId === property.id
-            );
-            const propertyRevenue = propertyInvoices.reduce(
-              (sum, inv) => sum + inv.total,
-              0
-            );
-            const propertyPaidInvoices = propertyInvoices.filter(
-              (inv) => inv.status === "paid"
-            );
-            const propertyPaidAmount = propertyPaidInvoices.reduce(
-              (sum, inv) => sum + inv.total,
-              0
-            );
+        byProperty: selectedPropertyId
+          ? // If property is selected, show only that property
+            (() => {
+              const property = propertiesData.find(
+                (p) => p.id === selectedPropertyId
+              );
+              if (!property) return [];
 
-            return {
-              propertyId: property.id,
-              propertyName: property.name,
-              revenue: propertyRevenue,
-              profit: propertyRevenue * 0.7, // 70% margin assumption
-              marginPct: propertyRevenue > 0 ? 70.0 : 0,
-              invoicesPaidPct:
-                propertyRevenue > 0
-                  ? (propertyPaidAmount / propertyRevenue) * 100
-                  : 0,
-            };
-          })
-          .filter((prop) => prop.revenue > 0), // Only show properties with invoices
+              const propertyInvoices = invoices.filter(
+                (inv) => inv.propertyId === selectedPropertyId
+              );
+              const propertyRevenue = propertyInvoices.reduce(
+                (sum, inv) => sum + inv.total,
+                0
+              );
+              const propertyPaidInvoices = propertyInvoices.filter(
+                (inv) => inv.status === "paid"
+              );
+              const propertyPaidAmount = propertyPaidInvoices.reduce(
+                (sum, inv) => sum + inv.total,
+                0
+              );
+
+              return [
+                {
+                  propertyId: property.id,
+                  propertyName: property.name,
+                  revenue: propertyRevenue,
+                  profit: propertyRevenue * 0.7, // 70% margin assumption
+                  marginPct: propertyRevenue > 0 ? 70.0 : 0,
+                  invoicesPaidPct:
+                    propertyRevenue > 0
+                      ? (propertyPaidAmount / propertyRevenue) * 100
+                      : 0,
+                },
+              ];
+            })()
+          : // Show all properties with invoices
+            propertiesData
+              .map((property) => {
+                // Calculate property-specific stats from invoices
+                const propertyInvoices = invoices.filter(
+                  (inv) => inv.propertyId === property.id
+                );
+                const propertyRevenue = propertyInvoices.reduce(
+                  (sum, inv) => sum + inv.total,
+                  0
+                );
+                const propertyPaidInvoices = propertyInvoices.filter(
+                  (inv) => inv.status === "paid"
+                );
+                const propertyPaidAmount = propertyPaidInvoices.reduce(
+                  (sum, inv) => sum + inv.total,
+                  0
+                );
+
+                return {
+                  propertyId: property.id,
+                  propertyName: property.name,
+                  revenue: propertyRevenue,
+                  profit: propertyRevenue * 0.7, // 70% margin assumption
+                  marginPct: propertyRevenue > 0 ? 70.0 : 0,
+                  invoicesPaidPct:
+                    propertyRevenue > 0
+                      ? (propertyPaidAmount / propertyRevenue) * 100
+                      : 0,
+                };
+              })
+              .filter((prop) => prop.revenue > 0), // Only show properties with invoices
         series: [], // Empty for now - will implement time series later
       };
 
@@ -247,11 +316,13 @@ export default function FinancialReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, []); // Remove debouncedFrom, debouncedTo dependencies
+  }, []); // Stable dependency array - no dependencies needed
 
+  // Initial data fetch and refetch when property filter changes
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const propertyId = searchParams.get("propertyId");
+    fetchData(propertyId || undefined);
+  }, [searchParams, fetchData]);
 
   const exportFinancialReport = () => {
     // Mock export function
@@ -319,10 +390,355 @@ export default function FinancialReportsPage() {
           </p>
           <div className="space-y-3">
             <button
-              onClick={() => FinancialService.seedSampleData()}
+              onClick={async () => {
+                try {
+                  console.log("🌱 Seeding properties and invoices...");
+
+                  // First, seed the 3 properties that match the invoice IDs
+                  const propertiesToSeed = [
+                    {
+                      id: "prop_knysna_mall",
+                      name: "Knysna Mall",
+                      address: {
+                        street: "789 Coastal Drive",
+                        city: "Knysna",
+                        state: "WC",
+                        zipCode: "6570",
+                        country: "South Africa",
+                        fullAddress:
+                          "789 Coastal Drive, Knysna, WC 6570, South Africa",
+                      },
+                      status: "active" as const,
+                      propertyType: "Retail",
+                      squareFootage: 20000,
+                      yearBuilt: 2010,
+                      description:
+                        "Modern shopping mall in the heart of Knysna with excellent foot traffic",
+                      amenities: [
+                        "Parking",
+                        "Security",
+                        "HVAC",
+                        "Food Court",
+                        "Entertainment",
+                      ],
+                      contactInfo: {
+                        phone: "+27-44-123-4567",
+                        email: "manager@knysnamall.co.za",
+                        manager: "David Wilson",
+                        emergencyContact: "+27-44-999-9999",
+                      },
+                      financialInfo: {
+                        purchasePrice: 3500000,
+                        currentValue: 4200000,
+                        monthlyRent: 35000,
+                        propertyTax: 25000,
+                        insurance: 15000,
+                        monthlyExpenses: 12000,
+                      },
+                      location: {
+                        latitude: -34.0351,
+                        longitude: 23.0465,
+                        timezone: "Africa/Johannesburg",
+                      },
+                      metadata: {
+                        tags: [
+                          "retail",
+                          "mall",
+                          "coastal",
+                          "modern",
+                          "high-traffic",
+                        ],
+                        features: ["parking", "security", "food-court"],
+                        restrictions: ["business-hours-only"],
+                      },
+                    },
+                    {
+                      id: "prop_cavendish_center",
+                      name: "Cavendish Center",
+                      address: {
+                        street: "456 Business Avenue",
+                        city: "Midtown",
+                        state: "CA",
+                        zipCode: "90211",
+                        country: "USA",
+                        fullAddress:
+                          "456 Business Avenue, Midtown, CA 90211, USA",
+                      },
+                      status: "active" as const,
+                      propertyType: "Office",
+                      squareFootage: 25000,
+                      yearBuilt: 2005,
+                      description:
+                        "Modern office complex with premium amenities and professional atmosphere",
+                      amenities: [
+                        "Parking",
+                        "Security",
+                        "HVAC",
+                        "Elevator",
+                        "Conference Rooms",
+                        "Break Room",
+                        "Fitness Center",
+                      ],
+                      contactInfo: {
+                        phone: "+1-555-0101",
+                        email: "admin@cavendishcenter.com",
+                        manager: "Sarah Johnson",
+                        emergencyContact: "+1-555-9998",
+                      },
+                      financialInfo: {
+                        purchasePrice: 4000000,
+                        currentValue: 4800000,
+                        monthlyRent: 40000,
+                        propertyTax: 30000,
+                        insurance: 18000,
+                        monthlyExpenses: 15000,
+                      },
+                      location: {
+                        latitude: 34.0522,
+                        longitude: -118.2437,
+                        timezone: "America/Los_Angeles",
+                      },
+                      metadata: {
+                        tags: ["office", "modern", "premium", "professional"],
+                        features: ["parking", "security", "conference-rooms"],
+                        restrictions: ["business-hours-only"],
+                      },
+                    },
+                    {
+                      id: "prop_flour_market",
+                      name: "The Flour Market",
+                      address: {
+                        street: "123 Main Street",
+                        city: "Downtown",
+                        state: "CA",
+                        zipCode: "90210",
+                        country: "USA",
+                        fullAddress: "123 Main Street, Downtown, CA 90210, USA",
+                      },
+                      status: "active" as const,
+                      propertyType: "Retail",
+                      squareFootage: 15000,
+                      yearBuilt: 1995,
+                      description:
+                        "Historic retail building in downtown area with excellent foot traffic",
+                      amenities: [
+                        "Parking",
+                        "Security",
+                        "HVAC",
+                        "Loading Dock",
+                        "Storage Space",
+                      ],
+                      contactInfo: {
+                        phone: "+1-555-0100",
+                        email: "manager@flourmarket.com",
+                        manager: "John Smith",
+                        emergencyContact: "+1-555-9999",
+                      },
+                      financialInfo: {
+                        purchasePrice: 2500000,
+                        currentValue: 3200000,
+                        monthlyRent: 25000,
+                        propertyTax: 18000,
+                        insurance: 12000,
+                        monthlyExpenses: 8000,
+                      },
+                      location: {
+                        latitude: 34.0522,
+                        longitude: -118.2437,
+                        timezone: "America/Los_Angeles",
+                      },
+                      metadata: {
+                        tags: [
+                          "retail",
+                          "downtown",
+                          "historic",
+                          "high-traffic",
+                        ],
+                        features: ["parking", "security", "storage"],
+                        restrictions: ["no-industrial", "business-hours-only"],
+                      },
+                    },
+                  ];
+
+                  // Seed properties first using direct Firestore operations
+                  const { db } = await import("@/services/firebaseConfig");
+                  const { doc, setDoc, getDoc } = await import(
+                    "firebase/firestore"
+                  );
+
+                  for (const property of propertiesToSeed) {
+                    try {
+                      // Check if property already exists
+                      const existingDoc = await getDoc(
+                        doc(db, "properties", property.id)
+                      );
+                      if (existingDoc.exists()) {
+                        console.log(
+                          `ℹ️ Property ${property.name} already exists, skipping`
+                        );
+                        continue;
+                      }
+
+                      const propertyToStore = {
+                        ...property,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        createdBy: "system",
+                        updatedBy: "system",
+                      };
+
+                      await setDoc(
+                        doc(db, "properties", property.id),
+                        propertyToStore
+                      );
+                      console.log(`✅ Property created: ${property.name}`);
+                    } catch (error) {
+                      console.log(
+                        `❌ Error creating property ${property.name}:`,
+                        error
+                      );
+                    }
+                  }
+
+                  // Now seed service providers that match the invoice provider IDs
+                  const providersToSeed = [
+                    {
+                      id: "prov_parking_plus",
+                      name: "Parking Plus Services",
+                      service: "Parking Management",
+                      description:
+                        "Professional parking lot management and security services",
+                      contactInfo: {
+                        phone: "+1-555-0200",
+                        email: "info@parkingplus.com",
+                        website: "https://parkingplus.com",
+                      },
+                      address: {
+                        street: "100 Parking Plaza",
+                        city: "Downtown",
+                        state: "CA",
+                        zipCode: "90210",
+                        country: "USA",
+                      },
+                      status: "active" as const,
+                      rating: 4.8,
+                      specialties: [
+                        "Parking Management",
+                        "Security",
+                        "Maintenance",
+                      ],
+                      propertyIds: ["prop_knysna_mall", "prop_flour_market"],
+                    },
+                    {
+                      id: "prov_cleanpro_services",
+                      name: "CleanPro Services",
+                      service: "Cleaning & Sanitization",
+                      description:
+                        "Professional cleaning and sanitization services for commercial properties",
+                      contactInfo: {
+                        phone: "+1-555-0300",
+                        email: "info@cleanpro.com",
+                        website: "https://cleanpro.com",
+                      },
+                      address: {
+                        street: "200 Clean Street",
+                        city: "Midtown",
+                        state: "CA",
+                        zipCode: "90211",
+                        country: "USA",
+                      },
+                      status: "active" as const,
+                      rating: 4.9,
+                      specialties: [
+                        "Deep Cleaning",
+                        "Sanitization",
+                        "Maintenance",
+                      ],
+                      propertyIds: ["prop_flour_market"],
+                    },
+                    {
+                      id: "prov_fibernet_solutions",
+                      name: "FiberNet Solutions",
+                      service: "Internet & Network",
+                      description:
+                        "High-speed internet and network maintenance services",
+                      contactInfo: {
+                        phone: "+1-555-0400",
+                        email: "info@fibernet.com",
+                        website: "https://fibernet.com",
+                      },
+                      address: {
+                        street: "300 Tech Avenue",
+                        city: "Downtown",
+                        state: "CA",
+                        zipCode: "90210",
+                        country: "USA",
+                      },
+                      status: "active" as const,
+                      rating: 4.7,
+                      specialties: [
+                        "Internet Service",
+                        "Network Maintenance",
+                        "Fiber Optics",
+                      ],
+                      propertyIds: ["prop_cavendish_center"],
+                    },
+                  ];
+
+                  // Seed service providers
+                  for (const provider of providersToSeed) {
+                    try {
+                      const existingDoc = await getDoc(
+                        doc(db, "serviceProviders", provider.id)
+                      );
+                      if (existingDoc.exists()) {
+                        console.log(
+                          `ℹ️ Provider ${provider.name} already exists, skipping`
+                        );
+                        continue;
+                      }
+
+                      const providerToStore = {
+                        ...provider,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        createdBy: "system",
+                        updatedBy: "system",
+                      };
+
+                      await setDoc(
+                        doc(db, "serviceProviders", provider.id),
+                        providerToStore
+                      );
+                      console.log(`✅ Provider created: ${provider.name}`);
+                    } catch (error) {
+                      console.log(
+                        `❌ Error creating provider ${provider.name}:`,
+                        error
+                      );
+                    }
+                  }
+
+                  // Now seed the invoices that reference these properties and providers
+                  await InvoiceService.seedSampleInvoices();
+                  console.log("✅ Invoices seeded successfully");
+
+                  console.log("🎉 All data seeded successfully!");
+                  console.log("📊 Created:", {
+                    properties: propertiesToSeed.length,
+                    providers: providersToSeed.length,
+                    invoices: "6 sample invoices",
+                  });
+
+                  // Refresh the page to show the new data
+                  window.location.reload();
+                } catch (error) {
+                  console.error("❌ Error seeding data:", error);
+                }
+              }}
               className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
-              Add Sample Data
+              🌱 Seed All Data (Properties, Providers, Invoices)
             </button>
             <button
               onClick={() => router.push("/dashboard/invoices")}
@@ -397,7 +813,12 @@ export default function FinancialReportsPage() {
             {summary.revenue > 0 ? (
               <>
                 Showing data for{" "}
-                <span className="font-medium">all invoices</span> in the system
+                <span className="font-medium">
+                  {searchParams.get("propertyId")
+                    ? `${selectedProperty?.name} invoices only`
+                    : "all invoices"}
+                </span>{" "}
+                in the system
               </>
             ) : (
               <>
@@ -555,26 +976,370 @@ export default function FinancialReportsPage() {
           </p>
           <div className="space-y-2 text-sm text-gray-500">
             <p>
-              • Use the "🌱 Seed All Data" button on the Analytics page to
-              create sample data
+              • Use the "🌱 Seed All Data" button below to create sample data
             </p>
             <p>• Or manually add invoices through the Invoices page</p>
             <p>
               • Make sure you have properties and service providers set up first
             </p>
           </div>
-          <div className="mt-6 flex justify-center gap-4">
+          <div className="mt-6 flex flex-col gap-3 max-w-sm mx-auto">
             <button
-              onClick={() => router.push("/dashboard/analytics")}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              onClick={async () => {
+                try {
+                  console.log("🌱 Seeding properties and invoices...");
+
+                  // First, seed the 3 properties that match the invoice IDs
+                  const propertiesToSeed = [
+                    {
+                      id: "prop_knysna_mall",
+                      name: "Knysna Mall",
+                      address: {
+                        street: "789 Coastal Drive",
+                        city: "Knysna",
+                        state: "WC",
+                        zipCode: "6570",
+                        country: "South Africa",
+                        fullAddress:
+                          "789 Coastal Drive, Knysna, WC 6570, South Africa",
+                      },
+                      status: "active" as const,
+                      propertyType: "Retail",
+                      squareFootage: 20000,
+                      yearBuilt: 2010,
+                      description:
+                        "Modern shopping mall in the heart of Knysna with excellent foot traffic",
+                      amenities: [
+                        "Parking",
+                        "Security",
+                        "HVAC",
+                        "Food Court",
+                        "Entertainment",
+                      ],
+                      contactInfo: {
+                        phone: "+27-44-123-4567",
+                        email: "manager@knysnamall.co.za",
+                        manager: "David Wilson",
+                        emergencyContact: "+27-44-999-9999",
+                      },
+                      financialInfo: {
+                        purchasePrice: 3500000,
+                        currentValue: 4200000,
+                        monthlyRent: 35000,
+                        propertyTax: 25000,
+                        insurance: 15000,
+                        monthlyExpenses: 12000,
+                      },
+                      location: {
+                        latitude: -34.0351,
+                        longitude: 23.0465,
+                        timezone: "Africa/Johannesburg",
+                      },
+                      metadata: {
+                        tags: [
+                          "retail",
+                          "mall",
+                          "coastal",
+                          "modern",
+                          "high-traffic",
+                        ],
+                        features: ["parking", "security", "food-court"],
+                        restrictions: ["business-hours-only"],
+                      },
+                    },
+                    {
+                      id: "prop_cavendish_center",
+                      name: "Cavendish Center",
+                      address: {
+                        street: "456 Business Avenue",
+                        city: "Midtown",
+                        state: "CA",
+                        zipCode: "90211",
+                        country: "USA",
+                        fullAddress:
+                          "456 Business Avenue, Midtown, CA 90211, USA",
+                      },
+                      status: "active" as const,
+                      propertyType: "Office",
+                      squareFootage: 25000,
+                      yearBuilt: 2005,
+                      description:
+                        "Modern office complex with premium amenities and professional atmosphere",
+                      amenities: [
+                        "Parking",
+                        "Security",
+                        "HVAC",
+                        "Elevator",
+                        "Conference Rooms",
+                        "Break Room",
+                        "Fitness Center",
+                      ],
+                      contactInfo: {
+                        phone: "+1-555-0101",
+                        email: "admin@cavendishcenter.com",
+                        manager: "Sarah Johnson",
+                        emergencyContact: "+1-555-9998",
+                      },
+                      financialInfo: {
+                        purchasePrice: 4000000,
+                        currentValue: 4800000,
+                        monthlyRent: 40000,
+                        propertyTax: 30000,
+                        insurance: 18000,
+                        monthlyExpenses: 15000,
+                      },
+                      location: {
+                        latitude: 34.0522,
+                        longitude: -118.2437,
+                        timezone: "America/Los_Angeles",
+                      },
+                      metadata: {
+                        tags: ["office", "modern", "premium", "professional"],
+                        features: ["parking", "security", "conference-rooms"],
+                        restrictions: ["business-hours-only"],
+                      },
+                    },
+                    {
+                      id: "prop_flour_market",
+                      name: "The Flour Market",
+                      address: {
+                        street: "123 Main Street",
+                        city: "Downtown",
+                        state: "CA",
+                        zipCode: "90210",
+                        country: "USA",
+                        fullAddress: "123 Main Street, Downtown, CA 90210, USA",
+                      },
+                      status: "active" as const,
+                      propertyType: "Retail",
+                      squareFootage: 15000,
+                      yearBuilt: 1995,
+                      description:
+                        "Historic retail building in downtown area with excellent foot traffic",
+                      amenities: [
+                        "Parking",
+                        "Security",
+                        "HVAC",
+                        "Loading Dock",
+                        "Storage Space",
+                      ],
+                      contactInfo: {
+                        phone: "+1-555-0100",
+                        email: "manager@flourmarket.com",
+                        manager: "John Smith",
+                        emergencyContact: "+1-555-9999",
+                      },
+                      financialInfo: {
+                        purchasePrice: 2500000,
+                        currentValue: 3200000,
+                        monthlyRent: 25000,
+                        propertyTax: 18000,
+                        insurance: 12000,
+                        monthlyExpenses: 8000,
+                      },
+                      location: {
+                        latitude: 34.0522,
+                        longitude: -118.2437,
+                        timezone: "America/Los_Angeles",
+                      },
+                      metadata: {
+                        tags: [
+                          "retail",
+                          "downtown",
+                          "historic",
+                          "high-traffic",
+                        ],
+                        features: ["parking", "security", "storage"],
+                        restrictions: ["no-industrial", "business-hours-only"],
+                      },
+                    },
+                  ];
+
+                  // Seed properties first using direct Firestore operations
+                  const { db } = await import("@/services/firebaseConfig");
+                  const { doc, setDoc, getDoc } = await import(
+                    "firebase/firestore"
+                  );
+
+                  for (const property of propertiesToSeed) {
+                    try {
+                      // Check if property already exists
+                      const existingDoc = await getDoc(
+                        doc(db, "properties", property.id)
+                      );
+                      if (existingDoc.exists()) {
+                        console.log(
+                          `ℹ️ Property ${property.name} already exists, skipping`
+                        );
+                        continue;
+                      }
+
+                      const propertyToStore = {
+                        ...property,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        createdBy: "system",
+                        updatedBy: "system",
+                      };
+
+                      await setDoc(
+                        doc(db, "properties", property.id),
+                        propertyToStore
+                      );
+                      console.log(`✅ Property created: ${property.name}`);
+                    } catch (error) {
+                      console.log(
+                        `❌ Error creating property ${property.name}:`,
+                        error
+                      );
+                    }
+                  }
+
+                  // Now seed service providers that match the invoice provider IDs
+                  const providersToSeed = [
+                    {
+                      id: "prov_parking_plus",
+                      name: "Parking Plus Services",
+                      service: "Parking Management",
+                      description:
+                        "Professional parking lot management and security services",
+                      contactInfo: {
+                        phone: "+1-555-0200",
+                        email: "info@parkingplus.com",
+                        website: "https://parkingplus.com",
+                      },
+                      address: {
+                        street: "100 Parking Plaza",
+                        city: "Downtown",
+                        state: "CA",
+                        zipCode: "90210",
+                        country: "USA",
+                      },
+                      status: "active" as const,
+                      rating: 4.8,
+                      specialties: [
+                        "Parking Management",
+                        "Security",
+                        "Maintenance",
+                      ],
+                      propertyIds: ["prop_knysna_mall", "prop_flour_market"],
+                    },
+                    {
+                      id: "prov_cleanpro_services",
+                      name: "CleanPro Services",
+                      service: "Cleaning & Sanitization",
+                      description:
+                        "Professional cleaning and sanitization services for commercial properties",
+                      contactInfo: {
+                        phone: "+1-555-0300",
+                        email: "info@cleanpro.com",
+                        website: "https://cleanpro.com",
+                      },
+                      address: {
+                        street: "200 Clean Street",
+                        city: "Midtown",
+                        state: "CA",
+                        zipCode: "90211",
+                        country: "USA",
+                      },
+                      status: "active" as const,
+                      rating: 4.9,
+                      specialties: [
+                        "Deep Cleaning",
+                        "Sanitization",
+                        "Maintenance",
+                      ],
+                      propertyIds: ["prop_flour_market"],
+                    },
+                    {
+                      id: "prov_fibernet_solutions",
+                      name: "FiberNet Solutions",
+                      service: "Internet & Network",
+                      description:
+                        "High-speed internet and network maintenance services",
+                      contactInfo: {
+                        phone: "+1-555-0400",
+                        email: "info@fibernet.com",
+                        website: "https://fibernet.com",
+                      },
+                      address: {
+                        street: "300 Tech Avenue",
+                        city: "Downtown",
+                        state: "CA",
+                        zipCode: "90210",
+                        country: "USA",
+                      },
+                      status: "active" as const,
+                      rating: 4.7,
+                      specialties: [
+                        "Internet Service",
+                        "Network Maintenance",
+                        "Fiber Optics",
+                      ],
+                      propertyIds: ["prop_cavendish_center"],
+                    },
+                  ];
+
+                  // Seed service providers
+                  for (const provider of providersToSeed) {
+                    try {
+                      const existingDoc = await getDoc(
+                        doc(db, "serviceProviders", provider.id)
+                      );
+                      if (existingDoc.exists()) {
+                        console.log(
+                          `ℹ️ Provider ${provider.name} already exists, skipping`
+                        );
+                        continue;
+                      }
+
+                      const providerToStore = {
+                        ...provider,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        createdBy: "system",
+                        updatedBy: "system",
+                      };
+
+                      await setDoc(
+                        doc(db, "serviceProviders", provider.id),
+                        providerToStore
+                      );
+                      console.log(`✅ Provider created: ${provider.name}`);
+                    } catch (error) {
+                      console.log(
+                        `❌ Error creating provider ${provider.name}:`,
+                        error
+                      );
+                    }
+                  }
+
+                  // Now seed the invoices that reference these properties and providers
+                  await InvoiceService.seedSampleInvoices();
+                  console.log("✅ Invoices seeded successfully");
+
+                  console.log("🎉 All data seeded successfully!");
+                  console.log("📊 Created:", {
+                    properties: propertiesToSeed.length,
+                    providers: providersToSeed.length,
+                    invoices: "6 sample invoices",
+                  });
+
+                  // Refresh the page to show the new data
+                  window.location.reload();
+                } catch (error) {
+                  console.error("❌ Error seeding data:", error);
+                }
+              }}
+              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
-              Go to Analytics
+              🌱 Seed All Data (Properties, Providers, Invoices)
             </button>
             <button
               onClick={() => router.push("/dashboard/invoices")}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
-              Go to Invoices
+              Create First Invoice
             </button>
           </div>
         </div>
@@ -595,6 +1360,23 @@ export default function FinancialReportsPage() {
           </div>
         </div>
       </div>
+
+      {/* Debug Section - Remove this after testing */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="bg-gray-100 rounded-lg p-4 mt-6">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">
+            Debug Info
+          </h3>
+          <div className="text-xs text-gray-600 space-y-1">
+            <div>Invoices Count: {financialData?.byProperty.length || 0}</div>
+            <div>Properties Count: {properties.length}</div>
+            <div>
+              Selected Property: {searchParams.get("propertyId") || "None"}
+            </div>
+            <div>Total Revenue: ${financialData?.summary.revenue || 0}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
